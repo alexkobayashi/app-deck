@@ -53,7 +53,7 @@ jobs:
         run: ./gradlew :app:assembleRelease
 
       - name: Publicar o APK de debug
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: app-debug
           path: android/app/build/outputs/apk/debug/*.apk
@@ -61,7 +61,7 @@ jobs:
 
       - name: Publicar relatórios em caso de falha
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: relatorios-android
           path: |
