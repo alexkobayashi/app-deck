@@ -10,17 +10,19 @@ rede Wi-Fi.
 
 ## Status
 
-Projeto em fase inicial. Hoje o repositório contém apenas o **protótipo de
-referência** funcional em [reference/](reference/) — um servidor Go mínimo que
-serve uma página web com botões. O servidor v2 e o app Android nativo estão em
-desenvolvimento.
+[![CI](https://github.com/alexkobayashi/app-deck/actions/workflows/ci.yml/badge.svg)](https://github.com/alexkobayashi/app-deck/actions/workflows/ci.yml)
 
 | Componente | Estado |
 |---|---|
-| Protótipo de referência (`reference/`) | Funcional |
-| Servidor Go v2 (`server/`) | Planejado |
-| App Android (`android/`) | Planejado |
-| Documentação da API (`docs/api.md`) | Planejado |
+| Servidor Go — API JSON (`server/`) | **Funcional** |
+| Documentação da API (`docs/api.md`) | **Completa** (contrato v2) |
+| Servidor Go — bandeja, autostart, QR | Em desenvolvimento |
+| App Android (`android/`) | Em desenvolvimento |
+| Protótipo de referência (`reference/`) | Funcional (histórico) |
+
+O servidor já expõe a API completa (`/api/health`, CRUD de atalhos e
+`launch`), com autenticação por token no header, persistência atômica do
+`config.json`, logging estruturado e testes. Como rodar: [server/README.md](server/README.md).
 
 Veja o roadmap completo em [CLAUDE.md](CLAUDE.md).
 
@@ -47,29 +49,37 @@ gera um aleatório com `crypto/rand`.
 > **Nunca commite um `config.json` com token real.** O `.gitignore` já bloqueia
 > esse arquivo — use `config.example.json` como modelo versionado.
 
-## Executando o protótipo
-
-Instruções em [reference/PROTOTIPO_README.md](reference/PROTOTIPO_README.md).
-
-Resumo:
+## Rodando o servidor
 
 ```bash
-cd reference
-GOOS=windows GOARCH=amd64 go build -o app-deck.exe main.go
+cd server
+go build -o app-deck-server.exe ./cmd/deck-server
+./app-deck-server.exe
 ```
 
-Copie `config.json`, ajuste os caminhos dos programas e o token, e rode o `.exe`.
+No primeiro start o servidor cria um `config.json` com um token aleatório e
+mostra no log o endereço para configurar no app. Libere a porta no Firewall
+do Windows para "Redes privadas". Detalhes, flags e configuração em
+[server/README.md](server/README.md); o contrato da API em
+[docs/api.md](docs/api.md).
+
+Um `config.json` no formato do protótipo é migrado automaticamente (com
+backup) no primeiro start.
 
 ## Estrutura do repositório
 
 ```
 app-deck/
-├── server/              # servidor Go (em desenvolvimento)
+├── server/              # servidor Go — API JSON, funcional
 ├── android/             # app Android (em desenvolvimento)
 ├── docs/api.md          # contrato da API entre os dois projetos
 ├── reference/           # protótipo original — consulta apenas, não editar
 └── .github/workflows/   # CI: build + testes
 ```
+
+O protótipo original continua disponível em
+[reference/PROTOTIPO_README.md](reference/PROTOTIPO_README.md) como
+referência histórica.
 
 Monorepo: os dois projetos evoluem junto com a API que é o contrato entre eles.
 

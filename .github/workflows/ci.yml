@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: Servidor Go (Linux)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          # Evita duplicar a versão do Go: ela vive só no go.mod.
+          go-version-file: server/go.mod
+          # Enquanto o módulo não tem dependências externas não existe
+          # go.sum; o go.mod serve de chave de cache.
+          cache-dependency-path: server/go.mod
+
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "Arquivos fora do padrão do gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      # O detector de corrida precisa de CGO e gcc, que o runner ubuntu já tem.
+      # É o único lugar onde -race roda: no Windows sem toolchain C, não roda.
+      - name: go test -race
+        run: go test -race -coverprofile=coverage.out ./...
+
+      # Garante que o código específico do Windows compila mesmo sendo
+      # construído a partir do Linux — é assim que o release é gerado.
+      - name: Cross-compile para Windows
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: "0"
+        run: |
+          go vet ./...
+          go build -o /tmp/app-deck-server.exe ./cmd/deck-server
+
+      - name: Publicar cobertura
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-coverage
+          path: server/coverage.out
+          if-no-files-found: error
+
+  server-windows:
+    name: Servidor Go (Windows)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          # Enquanto o módulo não tem dependências externas não existe
+          # go.sum; o go.mod serve de chave de cache.
+          cache-dependency-path: server/go.mod
+
+      # Sem -race: o runner Windows não tem toolchain C configurado por
+      # padrão. O alvo real precisa ao menos rodar os testes.
+      - name: go test
+        run: go test ./...

@@ -6,6 +6,9 @@ config.json
 
 # --- Go ---
 /server/bin/
+/server/dist/
+# Recursos gerados pelo go-winres no CI (ícone e metadados do .exe)
+*.syso
 *.exe
 *.exe~
 *.dll
