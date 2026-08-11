@@ -1,0 +1,12 @@
+App Deck
+Copyright 2026 Alex Kobayashi
+
+This product is licensed under the Apache License, Version 2.0.
+You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+---
+
+Third-party dependencies and their licenses are listed in the respective
+module manifests (server/go.mod, android/gradle/libs.versions.toml) as the
+projects evolve. All bundled dependencies use licenses compatible with the
+Apache License 2.0.

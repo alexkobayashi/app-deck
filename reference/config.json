@@ -1,0 +1,12 @@
+{
+  "token": "troque-esta-senha-123",
+  "porta": "5050",
+  "apps": [
+    { "name": "Word", "icon": "📄", "path": "C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE" },
+    { "name": "Chrome", "icon": "🌐", "path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" },
+    { "name": "Spotify", "icon": "🎵", "path": "C:\\Users\\SEU_USUARIO\\AppData\\Roaming\\Spotify\\Spotify.exe" },
+    { "name": "Calculadora", "icon": "🧮", "path": "C:\\Windows\\System32\\calc.exe" },
+    { "name": "VS Code", "icon": "💻", "path": "C:\\Users\\SEU_USUARIO\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe" },
+    { "name": "Steam", "icon": "🎮", "path": "C:\\Program Files (x86)\\Steam\\steam.exe" }
+  ]
+}

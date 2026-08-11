@@ -1,0 +1,27 @@
+# Normaliza para LF no repositório, checkout nativo no Windows
+* text=auto
+
+# Sempre LF — quebram se virarem CRLF
+*.go        text eol=lf
+*.kt        text eol=lf
+*.kts       text eol=lf
+*.sh        text eol=lf
+gradlew     text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+
+# Sempre CRLF — scripts do Windows
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+gradlew.bat text eol=crlf
+
+# Binários
+*.png       binary
+*.jpg       binary
+*.ico       binary
+*.exe       binary
+*.jar       binary
+*.apk       binary
+*.aab       binary
+*.keystore  binary
+*.jks       binary

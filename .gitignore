@@ -1,0 +1,56 @@
+# --- Configuração com segredos (NUNCA commitar) ---
+config.json
+!reference/config.json
+!**/config.example.json
+*.token
+
+# --- Go ---
+/server/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+go.work
+go.work.sum
+
+# --- Android / Gradle ---
+*.iml
+.gradle/
+/android/local.properties
+/android/build/
+/android/*/build/
+/android/captures/
+/android/.cxx/
+*.apk
+*.aab
+*.aar
+*.ap_
+*.dex
+/android/app/release/
+/android/app/debug/
+
+# Assinatura do APK — nunca commitar
+*.jks
+*.keystore
+keystore.properties
+
+# --- IDEs ---
+.idea/
+.vscode/
+*.swp
+*~
+
+# --- Sistema operacional ---
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# --- Logs e temporários ---
+*.log
+/logs/
+tmp/
