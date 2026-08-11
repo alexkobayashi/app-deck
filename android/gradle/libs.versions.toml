@@ -1,0 +1,92 @@
+[versions]
+# Toolchain. Subir uma versão por vez: a matriz AGP/Kotlin/KSP/Compose é
+# rígida e uma incompatibilidade só aparece no build.
+agp = "9.3.1"
+kotlin = "2.3.21"
+# KSP passou a ter versionamento independente do Kotlin na 2.3.0.
+ksp = "2.3.11"
+composeBom = "2026.06.01"
+
+# AndroidX
+coreKtx = "1.19.0"
+activityCompose = "1.13.0"
+lifecycle = "2.11.0"
+navigationCompose = "2.9.8"
+datastore = "1.2.1"
+room = "2.8.4"
+
+# Rede
+retrofit = "3.0.0"
+okhttp = "5.4.0"
+kotlinxSerialization = "1.11.0"
+
+# Testes
+junit = "4.13.2"
+coroutinesTest = "1.11.0"
+turbine = "1.2.1"
+robolectric = "4.16.1"
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
+androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+
+# Compose: as versões vêm do BOM, por isso sem version.ref aqui.
+compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+compose-ui = { group = "androidx.compose.ui", name = "ui" }
+compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+# material-icons-core apenas: o -extended traz milhares de ícones e infla o
+# build sem necessidade.
+compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core" }
+
+androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
+
+retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
+retrofit-converter-serialization = { group = "com.squareup.retrofit2", name = "converter-kotlinx-serialization", version.ref = "retrofit" }
+okhttp-bom = { group = "com.squareup.okhttp3", name = "okhttp-bom", version.ref = "okhttp" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp" }
+okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor" }
+okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver3" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
+turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+
+[bundles]
+compose = [
+    "compose-ui",
+    "compose-ui-graphics",
+    "compose-ui-tooling-preview",
+    "compose-material3",
+    "compose-material-icons-core",
+]
+network = [
+    "retrofit",
+    "retrofit-converter-serialization",
+    "okhttp",
+    "okhttp-logging",
+]
+room = ["androidx-room-runtime", "androidx-room-ktx"]
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+# Sem org.jetbrains.kotlin.android: a partir do AGP 9 o suporte a Kotlin é
+# embutido no próprio AGP, e aplicar o plugin antigo é erro de build. A
+# versão do Kotlin passa a vir dos plugins abaixo, que trazem o KGP
+# correspondente (o AGP 9 exige no mínimo 2.2.10).
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

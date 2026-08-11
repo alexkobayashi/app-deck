@@ -1,0 +1,70 @@
+name: Android
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+  pull_request:
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Testes, lint e APK de debug
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # Cuida do cache do Gradle e valida o hash da distribuição do wrapper.
+      - uses: gradle/actions/setup-gradle@v4
+
+      # O runner ubuntu já traz o Android SDK; sem local.properties, o AGP usa
+      # ANDROID_HOME — mesma configuração usada no build local.
+      - name: Testes unitários
+        run: ./gradlew :app:testDebugUnitTest
+
+      - name: Lint
+        run: ./gradlew :app:lintDebug
+
+      - name: APK de debug
+        run: ./gradlew :app:assembleDebug
+
+      # O APK de release exercita o R8: uma quebra de serialização por
+      # minificação aparece aqui, e não só quando alguém publica uma tag.
+      - name: APK de release (valida o R8)
+        run: ./gradlew :app:assembleRelease
+
+      - name: Publicar o APK de debug
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Publicar relatórios em caso de falha
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorios-android
+          path: |
+            android/app/build/reports/
+            android/app/build/test-results/
+          if-no-files-found: ignore

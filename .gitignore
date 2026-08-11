@@ -23,6 +23,8 @@ go.work.sum
 # --- Android / Gradle ---
 *.iml
 .gradle/
+# Sessões do compilador Kotlin (Kotlin 2.x)
+.kotlin/
 /android/local.properties
 /android/build/
 /android/*/build/

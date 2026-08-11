@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">App Deck</string>
+
+    <!-- Tela do deck -->
+    <string name="deck_title">Meu Deck</string>
+    <string name="deck_action_refresh">Recarregar atalhos</string>
+    <string name="deck_action_settings">Configurar servidor</string>
+    <string name="deck_launched">%1$s aberto no PC</string>
+
+    <!-- Estados vazios -->
+    <string name="deck_empty_title">Nenhum atalho ainda</string>
+    <string name="deck_empty_body">Adicione atalhos no config.json do servidor e recarregue.</string>
+    <string name="deck_not_configured_title">Configure o servidor</string>
+    <string name="deck_not_configured_body">Informe o IP, a porta e o token do PC onde o App Deck está rodando.</string>
+    <string name="deck_not_configured_action">Configurar</string>
+
+    <!-- Indicador de conexão -->
+    <string name="connection_online">Conectado</string>
+    <string name="connection_online_version">Conectado · servidor %1$s</string>
+    <string name="connection_offline">Sem conexão</string>
+    <string name="connection_checking">Conectando…</string>
+    <string name="connection_unknown">Status desconhecido</string>
+
+    <!-- Erros -->
+    <string name="error_not_configured">Nenhum servidor configurado.</string>
+    <string name="error_no_connection">Servidor não encontrado em %1$s. O PC está ligado e no mesmo Wi-Fi?</string>
+    <string name="error_unauthorized">Token inválido. Revise a configuração do servidor.</string>
+    <string name="error_not_found">Esse atalho não existe mais no servidor.</string>
+    <string name="error_server">O servidor respondeu com erro %1$d.</string>
+    <string name="error_unknown">Erro inesperado ao falar com o servidor.</string>
+
+    <!-- Tela de configuração -->
+    <string name="config_title">Servidor</string>
+    <string name="config_back">Voltar</string>
+    <string name="config_host_label">IP do PC</string>
+    <string name="config_host_help">Aparece no log do servidor, por exemplo 192.168.0.10</string>
+    <string name="config_host_invalid">Informe um endereço válido, sem http:// e sem porta</string>
+    <string name="config_port_label">Porta</string>
+    <string name="config_port_invalid">A porta precisa ser um número entre 1 e 65535</string>
+    <string name="config_token_label">Token</string>
+    <string name="config_token_help">Está no config.json, ao lado do executável do servidor</string>
+    <string name="config_action_test">Testar conexão</string>
+    <string name="config_action_save">Salvar</string>
+    <string name="config_test_ok">Servidor encontrado (versão %1$s)</string>
+    <string name="config_test_ok_no_version">Servidor encontrado</string>
+    <string name="config_saved">Configuração salva</string>
+</resources>

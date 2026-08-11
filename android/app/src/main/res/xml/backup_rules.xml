@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Backup está desligado no manifest (allowBackup="false") para o token do
+  servidor não sair do aparelho. Este arquivo existe porque o manifest o
+  referencia e para deixar a intenção explícita se o backup for reativado.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="." />
+    <exclude domain="database" path="." />
+    <exclude domain="file" path="." />
+</full-backup-content>

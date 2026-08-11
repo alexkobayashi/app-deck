@@ -17,16 +17,22 @@ rede Wi-Fi.
 | Servidor Go — API JSON (`server/`) | **Funcional** |
 | Servidor Go — bandeja, autostart, QR | **Funcional** |
 | Documentação da API (`docs/api.md`) | **Completa** (contrato v2) |
-| App Android (`android/`) | Em desenvolvimento |
+| App Android — deck e configuração (`android/`) | **Funcional** |
+| App Android — ícones, reordenar, CRUD, QR | Em desenvolvimento |
 | Protótipo de referência (`reference/`) | Funcional (histórico) |
 
-O servidor está completo: API JSON (`/api/health`, CRUD de atalhos e
-`launch`) com autenticação por token no header, persistência atômica do
-`config.json`, logging estruturado, ícone na bandeja do sistema,
-inicialização automática com o Windows e QR code de pareamento. Como rodar:
-[server/README.md](server/README.md).
+**Servidor:** API JSON (`/api/health`, CRUD de atalhos e `launch`) com
+autenticação por token no header, persistência atômica do `config.json`,
+logging estruturado, ícone na bandeja do sistema, inicialização automática com
+o Windows e QR code de pareamento. Ver [server/README.md](server/README.md).
 
-Falta o app Android — hoje o deck é operado pela API (ou pelo protótipo web).
+**App Android:** Kotlin + Compose. Grade de atalhos que abre os programas no
+PC, configuração manual do servidor com teste de conexão, indicador de status
+e cache local para o deck abrir instantâneo e continuar visível offline. Ver
+[android/README.md](android/README.md).
+
+Falta a customização de ícone, reordenar por arrastar, gerenciar atalhos pelo
+app e o pareamento por QR code do lado do celular.
 
 Veja o roadmap completo em [CLAUDE.md](CLAUDE.md).
 
@@ -69,6 +75,17 @@ do Windows para "Redes privadas". Detalhes, flags e configuração em
 
 Um `config.json` no formato do protótipo é migrado automaticamente (com
 backup) no primeiro start.
+
+## Rodando o app Android
+
+```bash
+cd android
+./gradlew :app:installDebug
+```
+
+No app, toque na engrenagem e informe IP, porta e token (ambos aparecem no log
+do servidor e no `config.json`). Detalhes em
+[android/README.md](android/README.md).
 
 ## Estrutura do repositório
 

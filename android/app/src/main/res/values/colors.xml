@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="deck_background">#FFFBFE</color>
+    <!-- Azul do ícone, o mesmo do servidor. -->
+    <color name="ic_launcher_background">#2F6BE0</color>
+</resources>
