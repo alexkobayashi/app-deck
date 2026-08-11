@@ -26,9 +26,7 @@ jobs:
         with:
           # Evita duplicar a versão do Go: ela vive só no go.mod.
           go-version-file: server/go.mod
-          # Enquanto o módulo não tem dependências externas não existe
-          # go.sum; o go.mod serve de chave de cache.
-          cache-dependency-path: server/go.mod
+          cache-dependency-path: server/go.sum
 
       - name: gofmt
         run: |
@@ -77,9 +75,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: server/go.mod
-          # Enquanto o módulo não tem dependências externas não existe
-          # go.sum; o go.mod serve de chave de cache.
-          cache-dependency-path: server/go.mod
+          cache-dependency-path: server/go.sum
 
       # Sem -race: o runner Windows não tem toolchain C configurado por
       # padrão. O alvo real precisa ao menos rodar os testes.

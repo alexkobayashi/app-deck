@@ -1,0 +1,109 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  server:
+    name: Servidor Windows
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      # Uma tag nunca deve gerar release com o servidor quebrado.
+      - name: Testes
+        run: go test ./...
+
+      # A versão para os metadados do .exe precisa ser numérica com quatro
+      # componentes: v0.3.0 -> 0.3.0.0, v1.2.0-rc1 -> 1.2.0.0.
+      - name: Derivar a versão
+        id: version
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          semver="${tag#v}"
+          numeric="$(printf '%s' "${semver%%-*}" | awk -F. '{printf "%d.%d.%d.%d", $1+0, $2+0, $3+0, $4+0}')"
+          echo "tag=$tag"           >> "$GITHUB_OUTPUT"
+          echo "numeric=$numeric"   >> "$GITHUB_OUTPUT"
+          echo "Tag $tag -> versão numérica $numeric"
+
+      # Ícone e metadados do executável. O .syso é gerado aqui e não fica
+      # versionado (está no .gitignore).
+      - name: Gerar recursos do Windows
+        run: |
+          go run github.com/tc-hib/go-winres@v0.3.3 make \
+            --in winres/winres.json \
+            --out cmd/deck-server/rsrc \
+            --product-version "${{ steps.version.outputs.numeric }}" \
+            --file-version "${{ steps.version.outputs.numeric }}"
+
+      # -H=windowsgui: sem janela de console, o servidor vive na bandeja.
+      # CGO_ENABLED=0: o systray no Windows é Go puro, então o cross-compile
+      # a partir do Linux funciona sem toolchain C.
+      - name: Compilar
+        env:
+          CGO_ENABLED: "0"
+          GOOS: windows
+          GOARCH: amd64
+        run: |
+          mod=github.com/alexkobayashi/app-deck/server/internal/version
+          mkdir -p dist
+          go build -trimpath \
+            -ldflags "-s -w -H=windowsgui \
+              -X ${mod}.Version=${{ steps.version.outputs.tag }} \
+              -X ${mod}.Commit=${GITHUB_SHA::7} \
+              -X ${mod}.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o dist/app-deck-server.exe ./cmd/deck-server
+
+      - name: Empacotar
+        run: |
+          cp config.example.json README.md dist/
+          cp ../LICENSE ../NOTICE dist/
+          cd dist
+          zip -9 "app-deck-server-${{ steps.version.outputs.tag }}-windows-amd64.zip" \
+            app-deck-server.exe config.example.json README.md LICENSE NOTICE
+          sha256sum app-deck-server.exe *.zip > SHA256SUMS.txt
+          ls -la
+
+      - name: Publicar no Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            server/dist/app-deck-server.exe
+            server/dist/app-deck-server-*.zip
+            server/dist/SHA256SUMS.txt
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          body: |
+            ## Servidor Windows
+
+            Baixe o `.zip`, extraia numa pasta gravável (ex: `%LOCALAPPDATA%\AppDeck`)
+            e execute o `app-deck-server.exe`. Não precisa ter Go instalado.
+
+            No primeiro start o servidor cria um `config.json` com um token
+            aleatório e aparece como ícone na **bandeja do sistema** — não abre
+            janela de console. Use **Mostrar QR de pareamento** para configurar o
+            app Android sem digitar nada, e **Iniciar com o Windows** para o
+            servidor subir junto com a sessão.
+
+            Libere a porta no **Firewall do Windows** para "Redes privadas" na
+            primeira execução, senão o celular não alcança o servidor.
+
+            > O executável não é assinado com certificado de código, então o
+            > SmartScreen vai avisar na primeira execução ("Mais informações" →
+            > "Executar assim mesmo"). Confira o `SHA256SUMS.txt` se quiser
+            > validar o download.
+
+            Documentação: [server/README.md](server/README.md) ·
+            [contrato da API](docs/api.md)
