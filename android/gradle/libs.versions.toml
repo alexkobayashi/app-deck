@@ -16,6 +16,7 @@ datastore = "1.2.1"
 room = "2.8.4"
 coil = "3.5.0"
 exifinterface = "1.4.2"
+reorderable = "3.1.0"
 
 # Rede
 retrofit = "3.0.0"
@@ -48,6 +49,10 @@ compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 # material-icons-core apenas: o -extended traz milhares de ícones e infla o
 # build sem necessidade.
 compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core" }
+
+# Arrastar para reordenar numa LazyVerticalGrid: a versão manual exigiria
+# resolver autoscroll, haptics e animação de item na mão.
+reorderable = { group = "sh.calvin.reorderable", name = "reorderable", version.ref = "reorderable" }
 
 # Coil carrega o ícone escolhido na galeria a partir do armazenamento interno.
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }

@@ -79,8 +79,15 @@ class FakeDeckRepository : DeckRepository {
         }
     }
 
+    override suspend fun saveOrder(orderedAppIds: List<String>) {
+        savedOrders += orderedAppIds
+        val byId = items.value.associateBy { it.id }
+        items.value = orderedAppIds.mapNotNull(byId::get)
+    }
+
     val iconsSet = mutableListOf<Pair<String, ShortcutIcon>>()
     val iconsCleared = mutableListOf<String>()
+    val savedOrders = mutableListOf<List<String>>()
 }
 
 class FakeConnectionRepository : ConnectionRepository {

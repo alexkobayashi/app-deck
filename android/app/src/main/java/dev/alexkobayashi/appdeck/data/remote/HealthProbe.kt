@@ -38,11 +38,11 @@ class HealthProbe(
                         when (response.code) {
                             401 -> ApiError.Unauthorized
                             404 -> ApiError.NotFound
-                            else -> ApiError.Server(response.code, message = raw?.take(200))
+                            else -> ApiError.Server(response.code, message = raw.take(200))
                         }
                     )
                 }
-                if (raw.isNullOrBlank()) {
+                if (raw.isBlank()) {
                     return@withContext ApiResult.Failure(ApiError.Unknown())
                 }
                 ApiResult.Success(json.decodeFromString<HealthDto>(raw))

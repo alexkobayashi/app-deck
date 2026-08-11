@@ -1,5 +1,6 @@
 package dev.alexkobayashi.appdeck.ui.deck
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,7 +11,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
@@ -24,13 +28,18 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -44,6 +53,8 @@ import dev.alexkobayashi.appdeck.domain.model.DeckItem
 import dev.alexkobayashi.appdeck.ui.common.apiErrorMessage
 import dev.alexkobayashi.appdeck.ui.deck.components.ConnectionBadge
 import dev.alexkobayashi.appdeck.ui.deck.components.DeckTile
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyGridState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,6 +69,10 @@ fun DeckScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptics = LocalHapticFeedback.current
+
+    // Modo de edição explícito: sem ele, o toque longo teria dois
+    // significados (arrastar e trocar ícone) e um atrapalharia o outro.
+    var editMode by rememberSaveable { mutableStateOf(false) }
 
     val message = state.message
     val launchedText = (message as? DeckMessage.Launched)
@@ -78,21 +93,44 @@ fun DeckScreen(
                 title = {
                     Column {
                         Text(stringResource(R.string.deck_title))
-                        ConnectionBadge(state.connection)
+                        if (editMode) {
+                            Text(
+                                text = stringResource(R.string.deck_edit_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        } else {
+                            ConnectionBadge(state.connection)
+                        }
                     }
                 },
                 actions = {
-                    IconButton(onClick = viewModel::refresh, enabled = !state.isRefreshing) {
-                        Icon(
-                            Icons.Filled.Refresh,
-                            contentDescription = stringResource(R.string.deck_action_refresh),
-                        )
-                    }
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(
-                            Icons.Filled.Settings,
-                            contentDescription = stringResource(R.string.deck_action_settings),
-                        )
+                    if (editMode) {
+                        TextButton(onClick = { editMode = false }) {
+                            Text(stringResource(R.string.deck_action_edit_done))
+                        }
+                    } else {
+                        IconButton(onClick = viewModel::refresh, enabled = !state.isRefreshing) {
+                            Icon(
+                                Icons.Filled.Refresh,
+                                contentDescription = stringResource(R.string.deck_action_refresh),
+                            )
+                        }
+                        IconButton(
+                            onClick = { editMode = true },
+                            enabled = state.items.isNotEmpty(),
+                        ) {
+                            Icon(
+                                Icons.Filled.Edit,
+                                contentDescription = stringResource(R.string.deck_action_edit),
+                            )
+                        }
+                        IconButton(onClick = onOpenSettings) {
+                            Icon(
+                                Icons.Filled.Settings,
+                                contentDescription = stringResource(R.string.deck_action_settings),
+                            )
+                        }
                     }
                 },
             )
@@ -123,11 +161,13 @@ fun DeckScreen(
                 else -> DeckGrid(
                     items = state.items,
                     launching = state.launching,
+                    editMode = editMode,
                     onLaunch = { item ->
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.launch(item)
                     },
                     onEditIcon = { item -> onEditIcon(item.id) },
+                    onOrderChanged = viewModel::saveOrder,
                 )
             }
         }
@@ -138,10 +178,23 @@ fun DeckScreen(
 private fun DeckGrid(
     items: List<DeckItem>,
     launching: Set<String>,
+    editMode: Boolean,
     onLaunch: (DeckItem) -> Unit,
     onEditIcon: (DeckItem) -> Unit,
+    onOrderChanged: (List<String>) -> Unit,
 ) {
+    val gridState = rememberLazyGridState()
+
+    // Cópia local reordenada durante o arraste: o item precisa acompanhar o
+    // dedo imediatamente, sem esperar a ida ao banco e a volta pelo Flow.
+    var ordered by remember(items) { mutableStateOf(items) }
+
+    val reorderableState = rememberReorderableLazyGridState(gridState) { from, to ->
+        ordered = ordered.toMutableList().apply { add(to.index, removeAt(from.index)) }
+    }
+
     LazyVerticalGrid(
+        state = gridState,
         // Adaptive em vez de um número fixo de colunas: o mesmo layout serve
         // para celular em retrato, paisagem e tablet.
         columns = GridCells.Adaptive(minSize = 104.dp),
@@ -150,14 +203,32 @@ private fun DeckGrid(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        // key estável: sem ela, a grade reembaralha itens ao recarregar.
-        items(items = items, key = { it.id }) { item ->
-            DeckTile(
-                item = item,
-                isLaunching = item.id in launching,
-                onClick = { onLaunch(item) },
-                onLongClick = { onEditIcon(item) },
-            )
+        // key estável: sem ela, a grade reembaralha itens ao recarregar e a
+        // animação de arraste troca o item errado de lugar.
+        items(items = ordered, key = { it.id }) { item ->
+            ReorderableItem(reorderableState, key = item.id) { isDragging ->
+                val elevation by animateDpAsState(
+                    targetValue = if (isDragging) 8.dp else 0.dp,
+                    label = "elevation",
+                )
+                DeckTile(
+                    item = item,
+                    isLaunching = item.id in launching,
+                    // Em modo de edição o toque não dispara o programa: seria
+                    // fácil abrir algo sem querer no meio de uma reorganização.
+                    onClick = { if (!editMode) onLaunch(item) },
+                    onLongClick = { if (!editMode) onEditIcon(item) },
+                    modifier = if (editMode) {
+                        Modifier
+                            .shadow(elevation, RoundedCornerShape(16.dp))
+                            .longPressDraggableHandle(
+                                onDragStopped = { onOrderChanged(ordered.map { it.id }) },
+                            )
+                    } else {
+                        Modifier
+                    },
+                )
+            }
         }
     }
 }

@@ -46,6 +46,14 @@ interface DeckRepository {
 
     /** Volta o atalho para as iniciais do nome. */
     suspend fun clearIcon(appId: String)
+
+    /**
+     * Persiste a ordem escolhida pelo usuário.
+     *
+     * A ordem é preferência **local**: o servidor não tem endpoint para
+     * isso (está reservado como `PUT /api/apps/order` em docs/api.md).
+     */
+    suspend fun saveOrder(orderedAppIds: List<String>)
 }
 
 /**
@@ -136,6 +144,10 @@ class DefaultDeckRepository(
             customizationDao.deleteByAppId(appId)
         }
         discardPreviousImage(existing, keep = null)
+    }
+
+    override suspend fun saveOrder(orderedAppIds: List<String>) {
+        customizationDao.saveOrder(orderedAppIds)
     }
 
     /** Apaga o arquivo do ícone anterior, se havia um e ele não é mais usado. */

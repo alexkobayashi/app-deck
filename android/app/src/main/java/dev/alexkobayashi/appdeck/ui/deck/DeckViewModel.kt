@@ -139,6 +139,11 @@ class DeckViewModel(
         }
     }
 
+    /** Persiste a ordem depois de um arraste. */
+    fun saveOrder(orderedIds: List<String>) {
+        viewModelScope.launch { deckRepository.saveOrder(orderedIds) }
+    }
+
     fun consumeMessage(id: Long) {
         local.update { if (it.message?.id == id) it.copy(message = null) else it }
     }

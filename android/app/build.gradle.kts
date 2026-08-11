@@ -87,6 +87,7 @@ dependencies {
 
     implementation(libs.coil.compose)
     implementation(libs.androidx.exifinterface)
+    implementation(libs.reorderable)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

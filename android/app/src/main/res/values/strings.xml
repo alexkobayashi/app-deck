@@ -6,6 +6,9 @@
     <string name="deck_title">Meu Deck</string>
     <string name="deck_action_refresh">Recarregar atalhos</string>
     <string name="deck_action_settings">Configurar servidor</string>
+    <string name="deck_action_edit">Reorganizar atalhos</string>
+    <string name="deck_action_edit_done">Concluir</string>
+    <string name="deck_edit_hint">Arraste para reordenar · toque e segure um atalho para trocar o ícone</string>
     <string name="deck_launched">%1$s aberto no PC</string>
 
     <!-- Seletor de ícone -->
