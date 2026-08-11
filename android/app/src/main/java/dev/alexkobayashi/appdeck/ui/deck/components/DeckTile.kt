@@ -29,28 +29,41 @@ import dev.alexkobayashi.appdeck.ui.common.ShortcutIconView
  * Usa combinedClickable em vez do onClick do Card porque o toque longo é a
  * porta de entrada para trocar o ícone, e o Card não expõe onLongClick.
  */
+/**
+ * Os handlers são nulos no modo de reordenação.
+ *
+ * Não basta ignorá-los: um `combinedClickable` registrado continua
+ * *consumindo* o toque longo mesmo que a lambda não faça nada, e o
+ * `longPressDraggableHandle` nunca recebe o gesto. O detector precisa não
+ * existir, não apenas ficar quieto.
+ */
 @Composable
 fun DeckTile(
     item: DeckItem,
     isLaunching: Boolean,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit,
+    onClick: (() -> Unit)?,
+    onLongClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(16.dp)
+    val interactive = onClick != null || onLongClick != null
 
     Surface(
         shape = shape,
         color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = modifier
             .aspectRatio(1f)
-            .combinedClickable(
-                // Durante a abertura o toque é ignorado, para um toque duplo
-                // acidental não abrir o programa duas vezes. O toque longo
-                // continua valendo: trocar o ícone não depende do servidor.
-                enabled = true,
-                onClick = { if (!isLaunching) onClick() },
-                onLongClick = onLongClick,
+            .then(
+                if (interactive) {
+                    Modifier.combinedClickable(
+                        // Durante a abertura o toque é ignorado, para um toque
+                        // duplo acidental não abrir o programa duas vezes.
+                        onClick = { if (!isLaunching) onClick?.invoke() },
+                        onLongClick = onLongClick,
+                    )
+                } else {
+                    Modifier
+                },
             ),
     ) {
         Box(

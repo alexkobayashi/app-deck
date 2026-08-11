@@ -7,8 +7,22 @@ O contrato da API está em [docs/api.md](../docs/api.md).
 
 ## Compilar e instalar
 
-Requer o **Android Studio** (traz o JDK e o SDK). Abra a pasta `android/` ou
-use a linha de comando:
+Requer o **Android Studio**, que traz o JDK e o SDK. Dentro da IDE funciona
+direto; para usar a linha de comando é preciso apontar as duas variáveis de
+ambiente, porque o Android Studio **não** as define sozinho:
+
+```powershell
+# Uma vez, no PowerShell — vale a partir do próximo terminal
+setx JAVA_HOME "C:\Program Files\Android\Android Studio\jbr"
+setx ANDROID_HOME "$env:LOCALAPPDATA\Android\Sdk"
+```
+
+Sem `JAVA_HOME`, o `gradlew` falha com *"JAVA_HOME is not set and no 'java'
+command could be found in your PATH"*. Se ele estiver definido como string
+vazia, o erro fica mais confuso (`'""' não é reconhecido...`) — o script monta
+o caminho `""/bin/java.exe`.
+
+Depois disso:
 
 ```bash
 cd android
@@ -16,8 +30,16 @@ cd android
 ./gradlew :app:testDebugUnitTest :app:lintDebug
 ```
 
-O SDK é localizado por `ANDROID_HOME` (ou por um `local.properties` que o
-Android Studio cria automaticamente — o arquivo é ignorado pelo git).
+Alternativamente, o Android Studio cria um `local.properties` apontando o SDK
+ao abrir o projeto (o arquivo é ignorado pelo git).
+
+### Memória
+
+O `gradle.properties` usa heap enxuto (1,5 GB, sem paralelismo). Não é
+descuido: o padrão sugerido pelo Android Studio (4 GB), somado aos workers de
+lint, KSP e R8, derruba o daemon com *"insufficient memory"* numa máquina de
+16 GB com a IDE aberta. Se precisar acelerar em uma máquina folgada, suba o
+`org.gradle.jvmargs` localmente em vez de mudar o arquivo versionado.
 
 ## Primeiro uso
 

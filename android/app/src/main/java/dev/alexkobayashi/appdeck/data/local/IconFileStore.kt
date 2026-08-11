@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
+import java.io.InputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -83,28 +84,49 @@ class IconFileStore(
      * Decodifica já reduzida: uma foto de 12 MP decodificada inteira seria
      * ~48 MB de bitmap, o suficiente para derrubar o app por falta de memória.
      */
-    private fun decodeScaled(source: Uri): Bitmap? {
+    private fun decodeScaled(source: Uri): Bitmap? = try {
+        // Primeira passada: só as dimensões.
+        //
+        // Cuidado: com inJustDecodeBounds = true o decodeStream devolve null
+        // por definição — ele só preenche as options. Testar esse retorno
+        // como se fosse falha faz toda imagem ser recusada; o que precisa ser
+        // verificado é a abertura do stream.
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        context.contentResolver.openInputStream(source)?.use {
-            BitmapFactory.decodeStream(it, null, bounds)
-        } ?: return null
+        openStream(source)?.use { BitmapFactory.decodeStream(it, null, bounds) }
 
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-
-        val options = BitmapFactory.Options().apply {
-            inSampleSize = sampleSizeFor(bounds.outWidth, bounds.outHeight, TARGET_SIZE)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            null
+        } else {
+            // Segunda passada: decodifica de fato, já reduzida.
+            val options = BitmapFactory.Options().apply {
+                inSampleSize = sampleSizeFor(bounds.outWidth, bounds.outHeight, TARGET_SIZE)
+            }
+            openStream(source)
+                ?.use { BitmapFactory.decodeStream(it, null, options) }
+                ?.let { applyExifRotation(source, it) }
         }
-        val decoded = context.contentResolver.openInputStream(source)?.use {
-            BitmapFactory.decodeStream(it, null, options)
-        } ?: return null
+    } catch (e: OutOfMemoryError) {
+        // Imagem absurdamente grande: recusar é melhor que derrubar o app.
+        null
+    } catch (e: Exception) {
+        null
+    }
 
-        return applyExifRotation(source, decoded)
+    /**
+     * openInputStream **lança** FileNotFoundException quando o conteúdo sumiu,
+     * em vez de devolver null — acontece de verdade quando a foto é apagada da
+     * galeria entre a escolha e a leitura.
+     */
+    private fun openStream(source: Uri): InputStream? = try {
+        context.contentResolver.openInputStream(source)
+    } catch (e: Exception) {
+        null
     }
 
     /** Foto tirada com o celular de lado chega deitada sem isto. */
     private fun applyExifRotation(source: Uri, bitmap: Bitmap): Bitmap {
         val orientation = try {
-            context.contentResolver.openInputStream(source)?.use { stream ->
+            openStream(source)?.use { stream ->
                 ExifInterface(stream).getAttributeInt(
                     ExifInterface.TAG_ORIENTATION,
                     ExifInterface.ORIENTATION_NORMAL,

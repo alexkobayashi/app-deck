@@ -214,10 +214,11 @@ private fun DeckGrid(
                 DeckTile(
                     item = item,
                     isLaunching = item.id in launching,
-                    // Em modo de edição o toque não dispara o programa: seria
-                    // fácil abrir algo sem querer no meio de uma reorganização.
-                    onClick = { if (!editMode) onLaunch(item) },
-                    onLongClick = { if (!editMode) onEditIcon(item) },
+                    // No modo de edição os handlers precisam ser nulos, e não
+                    // apenas inertes: um combinedClickable registrado consome
+                    // o toque longo e o arraste nunca começa.
+                    onClick = if (editMode) null else ({ onLaunch(item) }),
+                    onLongClick = if (editMode) null else ({ onEditIcon(item) }),
                     modifier = if (editMode) {
                         Modifier
                             .shadow(elevation, RoundedCornerShape(16.dp))
