@@ -50,6 +50,7 @@ import dev.alexkobayashi.appdeck.ui.deck.components.DeckTile
 fun DeckScreen(
     container: AppContainer,
     onOpenSettings: () -> Unit,
+    onEditIcon: (String) -> Unit,
     viewModel: DeckViewModel = viewModel(factory = DeckViewModel.factory(container)),
 ) {
     // collectAsStateWithLifecycle: para de coletar quando a tela sai de
@@ -126,6 +127,7 @@ fun DeckScreen(
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.launch(item)
                     },
+                    onEditIcon = { item -> onEditIcon(item.id) },
                 )
             }
         }
@@ -137,6 +139,7 @@ private fun DeckGrid(
     items: List<DeckItem>,
     launching: Set<String>,
     onLaunch: (DeckItem) -> Unit,
+    onEditIcon: (DeckItem) -> Unit,
 ) {
     LazyVerticalGrid(
         // Adaptive em vez de um número fixo de colunas: o mesmo layout serve
@@ -153,6 +156,7 @@ private fun DeckGrid(
                 item = item,
                 isLaunching = item.id in launching,
                 onClick = { onLaunch(item) },
+                onLongClick = { onEditIcon(item) },
             )
         }
     }

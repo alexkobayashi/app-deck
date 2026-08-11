@@ -102,6 +102,7 @@ class AppContainer(context: Context) {
     val deckRepository: DeckRepository = DefaultDeckRepository(
         api = api,
         dao = database.cachedAppDao(),
+        customizationDao = database.customizationDao(),
         configRepository = serverConfigRepository,
         json = json,
     )

@@ -1,24 +1,32 @@
 package dev.alexkobayashi.appdeck.domain.model
 
 /**
- * Um atalho do deck.
+ * Um atalho do deck, já combinando o que veio do servidor com a
+ * customização local.
  *
- * O [id] vem do servidor e é estável: é por ele que a customização de ícone
- * (fase seguinte) fica amarrada ao atalho, sobrevivendo a renomeações.
+ * O [id] vem do servidor e é estável: é por ele que o ícone escolhido fica
+ * amarrado ao atalho, sobrevivendo a renomeações e a trocas de caminho.
  */
 data class DeckItem(
     val id: String,
     val name: String,
     val path: String,
     val args: List<String> = emptyList(),
+    val icon: ShortcutIcon = ShortcutIcon.Initials(""),
+    /** Posição escolhida pelo usuário; ausente, vale a ordem do servidor. */
+    val sortOrder: Int? = null,
 ) {
-    /** Iniciais usadas no ícone padrão, enquanto não há ícone customizado. */
+    /** Iniciais usadas quando não há ícone escolhido. */
     val initials: String
-        get() = name.trim()
+        get() = initialsOf(name)
+
+    companion object {
+        fun initialsOf(name: String): String = name.trim()
             .split(' ', '-', '_')
             .filter { it.isNotBlank() }
             .take(2)
             .map { it.first().uppercaseChar() }
             .joinToString("")
             .ifEmpty { "?" }
+    }
 }

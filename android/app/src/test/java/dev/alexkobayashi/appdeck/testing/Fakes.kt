@@ -9,6 +9,7 @@ import dev.alexkobayashi.appdeck.domain.model.ConnectionStatus
 import dev.alexkobayashi.appdeck.domain.model.DeckItem
 import dev.alexkobayashi.appdeck.domain.model.ServerConfig
 import dev.alexkobayashi.appdeck.domain.model.ServerConfigState
+import dev.alexkobayashi.appdeck.domain.model.ShortcutIcon
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,6 +56,23 @@ class FakeDeckRepository : DeckRepository {
         }
         return launchResult
     }
+
+    override suspend fun findItem(id: String): DeckItem? = items.value.firstOrNull { it.id == id }
+
+    override suspend fun setIcon(appId: String, icon: ShortcutIcon) {
+        iconsSet += appId to icon
+        items.value = items.value.map { if (it.id == appId) it.copy(icon = icon) else it }
+    }
+
+    override suspend fun clearIcon(appId: String) {
+        iconsCleared += appId
+        items.value = items.value.map {
+            if (it.id == appId) it.copy(icon = ShortcutIcon.Initials(it.initials)) else it
+        }
+    }
+
+    val iconsSet = mutableListOf<Pair<String, ShortcutIcon>>()
+    val iconsCleared = mutableListOf<String>()
 }
 
 class FakeConnectionRepository : ConnectionRepository {

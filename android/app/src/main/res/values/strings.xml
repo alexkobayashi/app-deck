@@ -8,6 +8,11 @@
     <string name="deck_action_settings">Configurar servidor</string>
     <string name="deck_launched">%1$s aberto no PC</string>
 
+    <!-- Seletor de ícone -->
+    <string name="icon_title">Ícone</string>
+    <string name="icon_remove">Remover</string>
+    <string name="icon_emoji_section">Escolha um emoji</string>
+
     <!-- Estados vazios -->
     <string name="deck_empty_title">Nenhum atalho ainda</string>
     <string name="deck_empty_body">Adicione atalhos no config.json do servidor e recarregue.</string>

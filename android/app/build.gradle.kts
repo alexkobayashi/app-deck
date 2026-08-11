@@ -54,6 +54,13 @@ android {
     }
 }
 
+// Room grava aqui o JSON do schema de cada versão. É o que permite testar
+// migrações de verdade, em vez de confiar que estão certas.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.generateKotlin", "true")
+}
+
 // Sem jvmToolchain de propósito: assim o build funciona tanto com o JDK do
 // Android Studio quanto com o JDK do CI, sem provisionar toolchain. Com o
 // Kotlin embutido do AGP 9, o jvmTarget já herda de
