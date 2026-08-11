@@ -64,6 +64,14 @@ class FakeDeckRepository : DeckRepository {
         items.value = items.value.map { if (it.id == appId) it.copy(icon = icon) else it }
     }
 
+    var imageIconSucceeds = true
+
+    override suspend fun setImageIcon(appId: String, source: android.net.Uri): Boolean {
+        if (!imageIconSucceeds) return false
+        setIcon(appId, ShortcutIcon.Local("ic_$appId.webp", 1L))
+        return true
+    }
+
     override suspend fun clearIcon(appId: String) {
         iconsCleared += appId
         items.value = items.value.map {

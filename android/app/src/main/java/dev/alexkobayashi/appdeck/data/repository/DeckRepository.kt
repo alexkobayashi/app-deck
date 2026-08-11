@@ -1,6 +1,8 @@
 package dev.alexkobayashi.appdeck.data.repository
 
+import android.net.Uri
 import dev.alexkobayashi.appdeck.data.local.CachedAppDao
+import dev.alexkobayashi.appdeck.data.local.IconFileStore
 import dev.alexkobayashi.appdeck.data.local.CachedAppEntity
 import dev.alexkobayashi.appdeck.data.local.ShortcutCustomizationDao
 import dev.alexkobayashi.appdeck.data.local.ShortcutCustomizationEntity
@@ -36,6 +38,12 @@ interface DeckRepository {
     /** Grava o ícone escolhido para o atalho. */
     suspend fun setIcon(appId: String, icon: ShortcutIcon)
 
+    /**
+     * Copia a imagem escolhida na galeria para o armazenamento do app e a
+     * define como ícone. Devolve false se a imagem não pôde ser lida.
+     */
+    suspend fun setImageIcon(appId: String, source: Uri): Boolean
+
     /** Volta o atalho para as iniciais do nome. */
     suspend fun clearIcon(appId: String)
 }
@@ -53,6 +61,7 @@ class DefaultDeckRepository(
     private val customizationDao: ShortcutCustomizationDao,
     private val configRepository: ServerConfigRepository,
     private val json: Json,
+    private val iconFileStore: IconFileStore? = null,
     private val now: () -> Long = System::currentTimeMillis,
 ) : DeckRepository {
 
@@ -104,6 +113,15 @@ class DefaultDeckRepository(
                 updatedAt = now(),
             ),
         )
+        // Trocar de ícone deixaria a imagem anterior órfã ocupando espaço.
+        discardPreviousImage(existing, keep = ref)
+    }
+
+    override suspend fun setImageIcon(appId: String, source: Uri): Boolean {
+        val store = iconFileStore ?: return false
+        val fileName = store.save(appId, source) ?: return false
+        setIcon(appId, ShortcutIcon.Local(fileName, now()))
+        return true
     }
 
     override suspend fun clearIcon(appId: String) {
@@ -117,6 +135,16 @@ class DefaultDeckRepository(
         } else {
             customizationDao.deleteByAppId(appId)
         }
+        discardPreviousImage(existing, keep = null)
+    }
+
+    /** Apaga o arquivo do ícone anterior, se havia um e ele não é mais usado. */
+    private suspend fun discardPreviousImage(
+        previous: ShortcutCustomizationEntity?,
+        keep: String?,
+    ) {
+        val stale = previous?.takeIf { it.iconType == IconType.IMAGE }?.iconRef ?: return
+        if (stale != keep) iconFileStore?.delete(stale)
     }
 
     private suspend fun notConfigured(): ApiResult.Failure? =

@@ -14,6 +14,8 @@ lifecycle = "2.11.0"
 navigationCompose = "2.9.8"
 datastore = "1.2.1"
 room = "2.8.4"
+coil = "3.5.0"
+exifinterface = "1.4.2"
 
 # Rede
 retrofit = "3.0.0"
@@ -46,6 +48,11 @@ compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 # material-icons-core apenas: o -extended traz milhares de ícones e infla o
 # build sem necessidade.
 compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core" }
+
+# Coil carrega o ícone escolhido na galeria a partir do armazenamento interno.
+coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+# Lê a orientação EXIF: foto tirada de lado chegaria deitada sem isso.
+androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
 
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }

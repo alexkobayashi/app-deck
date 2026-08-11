@@ -2,6 +2,7 @@ package dev.alexkobayashi.appdeck
 
 import android.content.Context
 import dev.alexkobayashi.appdeck.data.local.AppDeckDatabase
+import dev.alexkobayashi.appdeck.data.local.IconFileStore
 import dev.alexkobayashi.appdeck.data.prefs.ServerConfigDataStore
 import dev.alexkobayashi.appdeck.data.remote.AuthInterceptor
 import dev.alexkobayashi.appdeck.data.remote.BaseUrlInterceptor
@@ -99,12 +100,15 @@ class AppContainer(context: Context) {
 
     private val database = AppDeckDatabase.create(context)
 
+    private val iconFileStore = IconFileStore(context)
+
     val deckRepository: DeckRepository = DefaultDeckRepository(
         api = api,
         dao = database.cachedAppDao(),
         customizationDao = database.customizationDao(),
         configRepository = serverConfigRepository,
         json = json,
+        iconFileStore = iconFileStore,
     )
 
     val connectionRepository: ConnectionRepository = DefaultConnectionRepository(

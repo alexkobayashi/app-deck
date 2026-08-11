@@ -1,19 +1,29 @@
 package dev.alexkobayashi.appdeck.ui.common
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import dev.alexkobayashi.appdeck.data.local.IconFileStore
 import dev.alexkobayashi.appdeck.domain.model.ShortcutIcon
+import java.io.File
 
 /**
  * Renderiza o ícone de um atalho, qualquer que seja a origem.
@@ -50,7 +60,28 @@ fun ShortcutIconView(
         // Até lá estes casos são inalcançáveis, porque o seletor não oferece
         // essas opções — o fallback existe para não haver estado sem desenho.
         is ShortcutIcon.Builtin -> InitialsIcon(icon.key.take(2).uppercase(), size, modifier)
-        is ShortcutIcon.Local -> InitialsIcon("IMG", size, modifier)
+
+        is ShortcutIcon.Local -> {
+            val context = LocalContext.current
+            val file = remember(icon.fileName) {
+                File(File(context.filesDir, IconFileStore.DIR_NAME), icon.fileName)
+            }
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(Uri.fromFile(file))
+                    // updatedAt entra na chave de cache: sem isso, trocar a
+                    // imagem continuaria exibindo a anterior, porque o Coil
+                    // guardaria a antiga sob o mesmo nome de arquivo.
+                    .memoryCacheKey("${icon.fileName}:${icon.updatedAt}")
+                    .diskCacheKey("${icon.fileName}:${icon.updatedAt}")
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = modifier
+                    .size(size)
+                    .clip(RoundedCornerShape(size * 0.25f)),
+            )
+        }
     }
 }
 

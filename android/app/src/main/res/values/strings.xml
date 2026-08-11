@@ -12,6 +12,8 @@
     <string name="icon_title">Ícone</string>
     <string name="icon_remove">Remover</string>
     <string name="icon_emoji_section">Escolha um emoji</string>
+    <string name="icon_from_gallery">Escolher da galeria</string>
+    <string name="icon_image_error">Não foi possível usar essa imagem</string>
 
     <!-- Estados vazios -->
     <string name="deck_empty_title">Nenhum atalho ainda</string>
