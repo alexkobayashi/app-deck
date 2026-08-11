@@ -1,0 +1,24 @@
+{
+  "version": 2,
+  "token": "",
+  "port": 5050,
+  "bind": "0.0.0.0",
+  "apps": [
+    {
+      "id": "0000000000000001",
+      "name": "Calculadora",
+      "path": "C:\\Windows\\System32\\calc.exe"
+    },
+    {
+      "id": "0000000000000002",
+      "name": "Chrome",
+      "path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+    },
+    {
+      "id": "0000000000000003",
+      "name": "VS Code",
+      "path": "C:\\Users\\SEU_USUARIO\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
+      "args": []
+    }
+  ]
+}

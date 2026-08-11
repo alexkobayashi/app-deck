@@ -1,0 +1,327 @@
+# API do App Deck — contrato v2
+
+Contrato HTTP entre o **app Android** (cliente) e o **servidor Go no Windows**.
+Este documento é normativo: qualquer rota nova ou alterada precisa ser
+atualizada aqui no mesmo PR que muda o código.
+
+- **Versão do contrato:** 2.0
+- **Implementado em:** `server/internal/httpapi`
+- **Base URL:** `http://<ip-do-pc>:<porta>` (padrão `5050`)
+
+## Visão geral
+
+A comunicação é restrita à **rede local**. O servidor não deve ser exposto à
+internet — sem port forward, sem túnel. Isso é uma decisão de escopo, não uma
+limitação a resolver: quem tem o token pode abrir qualquer programa no PC.
+
+Todas as requisições e respostas são JSON em UTF-8. Respostas de erro também
+são JSON — nunca texto puro nem HTML.
+
+O servidor **não sabe nada sobre ícones**. Ele conhece apenas `name` e `path`
+de cada atalho; o ícone é escolhido e guardado localmente pelo app Android,
+associado ao `id` do atalho.
+
+## Autenticação
+
+Todas as rotas **exceto `GET /api/health`** exigem o token no header:
+
+```
+Authorization: Bearer <token>
+```
+
+```bash
+curl -H "Authorization: Bearer SEU_TOKEN" http://192.168.0.10:5050/api/apps
+```
+
+O token **nunca** trafega na query string. `GET /api/apps?token=...` é
+recusado com 401 — o protótipo fazia isso e a v2 não aceita mais, porque a
+URL fica gravada em histórico e logs de intermediários.
+
+O token é gerado automaticamente com `crypto/rand` no primeiro start (43
+caracteres, base64 URL-safe) e fica no `config.json`. A comparação é feita em
+tempo constante.
+
+Falha de autenticação responde:
+
+```http
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json; charset=utf-8
+WWW-Authenticate: Bearer realm="app-deck"
+
+{"error":"não autorizado: envie o header Authorization: Bearer <token>","code":"unauthorized"}
+```
+
+## Convenções
+
+- `Content-Type` das respostas com corpo: `application/json; charset=utf-8`.
+- Corpo das requisições de escrita limitado a **64 KiB**.
+- Campos desconhecidos no corpo são **ignorados**, não recusados: uma versão
+  nova do app pode mandar campos que um servidor antigo não conhece.
+- Uma rota ou método fora do contrato responde **404 em JSON** (o servidor
+  registra um catch-all para não devolver o texto puro do `net/http`). Não
+  existe resposta 405.
+
+### Status codes
+
+| Status | Quando |
+|---|---|
+| 200 | Sucesso com corpo |
+| 201 | Atalho criado |
+| 204 | Atalho removido (sem corpo) |
+| 400 | JSON inválido ou campos obrigatórios ausentes |
+| 401 | Token ausente, mal formatado ou incorreto |
+| 404 | Atalho ou rota inexistente |
+| 413 | Corpo maior que 64 KiB |
+| 500 | Falha ao abrir o programa ou ao salvar a configuração |
+
+### Formato de erro
+
+```json
+{ "error": "mensagem legível em português", "code": "identificador_estavel" }
+```
+
+O app deve decidir o comportamento pelo `code`, não pela mensagem.
+
+| `code` | Status | Significado |
+|---|---|---|
+| `unauthorized` | 401 | Token inválido → mandar o usuário rever a configuração |
+| `not_found` | 404 | Atalho não existe mais → recarregar a lista |
+| `invalid_json` | 400 | Bug do cliente |
+| `validation_error` | 400 | Campos obrigatórios ausentes ou vazios |
+| `payload_too_large` | 413 | Corpo acima do limite |
+| `launch_failed` | 500 | O programa não pôde ser iniciado (ex: desinstalado) |
+| `save_failed` | 500 | O servidor não conseguiu gravar o `config.json` |
+| `internal_error` | 500 | Panic tratado; ver os logs do servidor |
+
+## Modelo `App`
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `id` | string | gerado pelo servidor | 16 caracteres hex. **Read-only e estável para sempre.** |
+| `name` | string | sim | Nome exibido no deck. Espaços nas pontas são removidos. |
+| `path` | string | sim | Caminho absoluto do executável no Windows. |
+| `args` | string[] | não | Argumentos passados ao programa. Omitido quando vazio. |
+
+O `id` é a chave que o app Android usa para guardar o ícone customizado.
+Ele é gerado uma única vez, com `crypto/rand`, e **não muda** quando o
+atalho é renomeado ou tem o caminho alterado. Editar o `config.json` à mão
+e apagar um `id` faz o servidor gerar outro — e o ícone daquele atalho se
+perde no app.
+
+### Ordenação
+
+A ordem do array em `GET /api/apps` é a ordem do `config.json`, e é a ordem
+em que o deck deve exibir os atalhos por padrão. Um atalho novo entra no fim.
+
+Reordenar é, na v1, uma preferência **local do app** (guardada no Room).
+Persistir a ordem no servidor fica reservado para `PUT /api/apps/order`,
+ainda não implementado.
+
+---
+
+## `GET /api/health`
+
+Status do servidor. **Única rota sem autenticação.**
+
+Usada pelo app para o indicador de conexão e para validar o pareamento antes
+de salvar a configuração. O payload é deliberadamente mínimo — sem hostname,
+sem caminhos, sem a lista de atalhos.
+
+**200**
+```json
+{ "status": "ok", "name": "app-deck", "version": "v0.2.0" }
+```
+
+`version` é `"dev"` num binário compilado localmente.
+
+```bash
+curl http://192.168.0.10:5050/api/health
+```
+
+---
+
+## `GET /api/apps`
+
+Lista os atalhos configurados.
+
+**200**
+```json
+{
+  "apps": [
+    { "id": "a3f1c09b7d24e5f6", "name": "Calculadora", "path": "C:\\Windows\\System32\\calc.exe" },
+    { "id": "b7d24e5f6a3f1c09", "name": "Chrome", "path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "args": ["--incognito"] }
+  ]
+}
+```
+
+Sem nenhum atalho configurado, `apps` é `[]` — nunca `null`.
+
+O token **nunca** aparece nesta resposta.
+
+```bash
+curl -H "Authorization: Bearer SEU_TOKEN" http://192.168.0.10:5050/api/apps
+```
+
+---
+
+## `POST /api/apps/{id}/launch`
+
+Abre o programa do atalho.
+
+Responde assim que o processo é criado, **sem esperar o programa fechar**. O
+processo filho é desacoplado do servidor (`DETACHED_PROCESS`), então encerrar
+o servidor não fecha os programas abertos.
+
+**Request:** sem corpo.
+
+**200**
+```json
+{ "status": "launched", "id": "a3f1c09b7d24e5f6", "name": "Chrome" }
+```
+
+**404** — id inexistente:
+```json
+{ "error": "atalho não encontrado: xyz", "code": "not_found" }
+```
+
+**500** — o atalho existe mas o executável não:
+```json
+{ "error": "não foi possível abrir Chrome: executável não encontrado: C:\\...\\chrome.exe", "code": "launch_failed" }
+```
+
+```bash
+curl -X POST -H "Authorization: Bearer SEU_TOKEN" \
+  http://192.168.0.10:5050/api/apps/a3f1c09b7d24e5f6/launch
+```
+
+---
+
+## `POST /api/apps`
+
+Cria um atalho. Ele entra no fim da lista.
+
+**Request**
+
+| Campo | Obrigatório | Observação |
+|---|---|---|
+| `name` | sim | Não pode ser vazio nem só espaços |
+| `path` | sim | Não pode ser vazio nem só espaços |
+| `args` | não | Lista de strings |
+
+`id` enviado pelo cliente é ignorado — quem gera é o servidor.
+
+```json
+{ "name": "Steam", "path": "C:\\Program Files (x86)\\Steam\\steam.exe", "args": ["-silent"] }
+```
+
+**201** — o atalho criado, já com o `id`:
+```json
+{ "id": "c09b7d24e5f6a3f1", "name": "Steam", "path": "C:\\Program Files (x86)\\Steam\\steam.exe", "args": ["-silent"] }
+```
+
+**400** — `{"error":"name e path são obrigatórios","code":"validation_error"}`
+
+**500** — `{"error":"não foi possível salvar a configuração no servidor","code":"save_failed"}`
+
+O servidor **não valida** se o `path` existe na criação (o programa pode
+estar num drive removível que não está conectado no momento). Um caminho
+quebrado gera aviso no log no próximo start e falha em `launch` com
+`launch_failed`.
+
+```bash
+curl -X POST -H "Authorization: Bearer SEU_TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"Steam","path":"C:\\Program Files (x86)\\Steam\\steam.exe"}' \
+  http://192.168.0.10:5050/api/apps
+```
+
+---
+
+## `PUT /api/apps/{id}`
+
+Edita um atalho. **A atualização é parcial:** um campo ausente fica como
+está. Pelo menos um entre `name`, `path` e `args` precisa vir no corpo.
+
+O `id` nunca muda numa edição — é o que garante que o ícone customizado no
+app sobreviva a uma renomeação.
+
+```json
+{ "name": "Steam (Big Picture)" }
+```
+
+Para limpar os argumentos, mande `"args": []`.
+
+**200** — o atalho completo depois da alteração.
+
+**400** — corpo vazio (`{}`), ou `name`/`path` enviados em branco:
+```json
+{ "error": "informe pelo menos um campo para alterar (name, path ou args)", "code": "validation_error" }
+```
+
+**404** — id inexistente.
+
+```bash
+curl -X PUT -H "Authorization: Bearer SEU_TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"Steam BP"}' \
+  http://192.168.0.10:5050/api/apps/c09b7d24e5f6a3f1
+```
+
+---
+
+## `DELETE /api/apps/{id}`
+
+Remove um atalho.
+
+**204** — sem corpo.
+
+**404** — id inexistente.
+
+Cabe ao app apagar a customização de ícone local do atalho removido.
+
+```bash
+curl -X DELETE -H "Authorization: Bearer SEU_TOKEN" \
+  http://192.168.0.10:5050/api/apps/c09b7d24e5f6a3f1
+```
+
+---
+
+## Pareamento por QR code
+
+> Ainda não implementado. Reservado para a fase da bandeja do sistema
+> (servidor v3).
+
+O menu da bandeja mostrará um QR code contendo:
+
+```json
+{ "ip": "192.168.0.10", "port": 5050, "token": "..." }
+```
+
+O app escaneia, valida com `GET /api/health` e só então salva a configuração.
+O app deve aceitar `port` como número **ou** string (o `config.json` do
+protótipo gravava a porta como string).
+
+---
+
+## Erros comuns em campo
+
+| Sintoma | Causa provável |
+|---|---|
+| O app não acha o servidor | Firewall do Windows bloqueando a porta em "Redes privadas", ou celular em outra rede/Wi-Fi de visitante |
+| Funcionava e parou | O IP do PC mudou (DHCP) — reparear pelo QR ou corrigir o IP à mão |
+| 401 em tudo | Token digitado errado, ou o `config.json` foi recriado (token novo) |
+| `launch_failed` | O programa foi desinstalado, atualizado para outro caminho, ou está num drive desconectado |
+| O deck aparece vazio | Nenhum atalho configurado ainda |
+
+## Changelog do contrato
+
+### 2.0 — inicial
+
+Primeira versão da API JSON. Diferenças em relação ao protótipo
+(`reference/main.go`, que servia HTML e tinha só `GET /` e `/abrir`):
+
+- Token no header `Authorization: Bearer`, nunca na query string.
+- Comparação de token em tempo constante.
+- Atalhos identificados por `id` estável em vez de pelo `name`.
+- Campo `icon` removido do servidor — o ícone é responsabilidade do app.
+- `porta` (string) virou `port` (inteiro).
+- CRUD completo de atalhos em runtime, com persistência atômica.
+- Todas as respostas, inclusive erros, em JSON estruturado.
