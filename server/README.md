@@ -33,6 +33,31 @@ endereço de escuta aparecem no log.
 Libere a porta no **Firewall do Windows** para "Redes privadas" na primeira
 execução, senão o celular não alcança o servidor.
 
+### Bandeja do sistema
+
+No Windows o servidor roda como aplicativo de bandeja, sem janela de console.
+O menu tem:
+
+- **Mostrar QR de pareamento** — gera `%LOCALAPPDATA%\AppDeck\pairing.png`
+  com `{"ip", "port", "token"}` e o abre no visualizador de imagens. O app
+  Android escaneia e se configura sozinho. O arquivo contém o token em claro
+  e é apagado ao sair pelo menu.
+- **Abrir pasta de logs** — abre o diretório de logs no Explorer.
+- **Iniciar com o Windows** — grava/remove o valor `AppDeck` em
+  `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`. Não exige
+  administrador. Os flags que você usou (`--config`, `--port`, `--bind`,
+  `--log-level`, `--log-dir`) são preservados na entrada, então o servidor
+  iniciado pelo Windows usa a mesma configuração.
+- **Sair** — encerra o servidor de forma limpa.
+
+A fonte da verdade do autostart é o registro, não o `config.json`. O menu
+compara a entrada com o caminho do executável atual: se o `.exe` foi movido,
+a opção aparece desmarcada — a entrada antiga está quebrada e um clique
+conserta.
+
+Use `--console` para rodar com o log na tela em vez da bandeja (útil para
+depurar). Fora do Windows o modo console é o único disponível.
+
 ### Flags
 
 | Flag | Padrão | Descrição |
@@ -42,7 +67,14 @@ execução, senão o celular não alcança o servidor.
 | `--bind` | do config | Endereço de escuta; `127.0.0.1` restringe ao próprio PC |
 | `--log-level` | `info` | `debug`, `info`, `warn` ou `error` |
 | `--log-dir` | `%LOCALAPPDATA%\AppDeck\logs` | Diretório dos logs |
+| `--console` | desligado | Roda no console em vez da bandeja |
 | `--version` | — | Mostra a versão e sai |
+
+No binário de release (compilado com `-H=windowsgui`) não existe stdout, então
+`--version` não imprime nada visível — use o build de desenvolvimento ou
+redirecione a saída para um arquivo. Pelo mesmo motivo, um erro que impeça o
+arranque (porta ocupada, `config.json` inválido) é mostrado numa caixa de
+diálogo, além de ir para o arquivo de log.
 
 ## Onde ficam os arquivos
 
@@ -129,13 +161,32 @@ Windows fica em arquivos `*_windows.go` com um stub `*_other.go`.
 
 ```
 server/
-├── cmd/deck-server/       # main, flags, ciclo de vida
+├── cmd/deck-server/       # main, flags, ciclo de vida, bandeja vs console
+├── winres/                # ícone e metadados do .exe (go-winres)
 └── internal/
+    ├── autostart/         # entrada em HKCU\...\Run
     ├── config/            # modelo, migração v1→v2, escrita atômica, Store
     ├── httpapi/           # rotas, auth Bearer, middlewares, respostas JSON
     ├── launcher/          # execução dos programas (interface + Fake p/ testes)
     ├── logging/           # slog em console + arquivo JSON com rotação
     ├── netinfo/           # descoberta dos IPs da LAN
+    ├── pairing/           # payload e QR code de pareamento
     ├── token/             # geração e comparação em tempo constante
+    ├── tray/              # menu da bandeja do sistema
     └── version/           # metadados injetados via -ldflags
 ```
+
+## Dependências
+
+O núcleo (API, config, launcher) usa só a biblioteca padrão. As três
+dependências externas servem à camada de bandeja:
+
+| Módulo | Para quê |
+|---|---|
+| `fyne.io/systray` | Ícone e menu na bandeja. Fork mantido do `getlantern/systray`; no Windows não exige CGO, então o `.exe` é gerado com `CGO_ENABLED=0` a partir do runner Linux do CI. |
+| `github.com/skip2/go-qrcode` | QR code de pareamento. Go puro, sem dependências transitivas. |
+| `golang.org/x/sys` | Acesso ao registro do Windows para o autostart. |
+
+O systray é importado apenas de arquivos `_windows.go`, então em Linux ele
+nem entra no build — é por isso que `CGO_ENABLED=0 GOOS=linux go build`
+funciona sem os headers do GTK.

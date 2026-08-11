@@ -15,14 +15,18 @@ rede Wi-Fi.
 | Componente | Estado |
 |---|---|
 | Servidor Go — API JSON (`server/`) | **Funcional** |
+| Servidor Go — bandeja, autostart, QR | **Funcional** |
 | Documentação da API (`docs/api.md`) | **Completa** (contrato v2) |
-| Servidor Go — bandeja, autostart, QR | Em desenvolvimento |
 | App Android (`android/`) | Em desenvolvimento |
 | Protótipo de referência (`reference/`) | Funcional (histórico) |
 
-O servidor já expõe a API completa (`/api/health`, CRUD de atalhos e
-`launch`), com autenticação por token no header, persistência atômica do
-`config.json`, logging estruturado e testes. Como rodar: [server/README.md](server/README.md).
+O servidor está completo: API JSON (`/api/health`, CRUD de atalhos e
+`launch`) com autenticação por token no header, persistência atômica do
+`config.json`, logging estruturado, ícone na bandeja do sistema,
+inicialização automática com o Windows e QR code de pareamento. Como rodar:
+[server/README.md](server/README.md).
+
+Falta o app Android — hoje o deck é operado pela API (ou pelo protótipo web).
 
 Veja o roadmap completo em [CLAUDE.md](CLAUDE.md).
 

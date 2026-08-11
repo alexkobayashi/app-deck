@@ -286,18 +286,50 @@ curl -X DELETE -H "Authorization: Bearer SEU_TOKEN" \
 
 ## Pareamento por QR code
 
-> Ainda não implementado. Reservado para a fase da bandeja do sistema
-> (servidor v3).
+Implementado no servidor. **"Mostrar QR de pareamento"** no menu da bandeja
+gera um PNG e o abre no visualizador de imagens padrão.
 
-O menu da bandeja mostrará um QR code contendo:
+O QR contém exatamente este JSON — três campos, `port` como **número**:
 
 ```json
 { "ip": "192.168.0.10", "port": 5050, "token": "..." }
 ```
 
-O app escaneia, valida com `GET /api/health` e só então salva a configuração.
-O app deve aceitar `port` como número **ou** string (o `config.json` do
-protótipo gravava a porta como string).
+| Campo | Tipo | Observação |
+|---|---|---|
+| `ip` | string | IPv4 da LAN escolhido pelo servidor (ver abaixo) |
+| `port` | número | Porta em que o servidor está escutando de fato, já considerando `--port` |
+| `token` | string | Token em vigor, 43 caracteres quando gerado pelo servidor |
+
+Quando o PC tem mais de um IPv4, o servidor escolhe o mais provável de ser
+alcançável pelo celular: interfaces virtuais (WSL, Docker, Hyper-V, VMware,
+VirtualBox) são descartadas e as faixas domésticas vêm primeiro
+(`192.168.x` → `10.x` → `172.16-31.x`). Todos os endereços detectados são
+registrados no log do servidor.
+
+Se o PC não tiver nenhum IPv4 utilizável, nenhum QR é gerado — mostrar um QR
+que o app não conseguiria usar seria pior que a mensagem de erro no log.
+
+### O que o app deve fazer
+
+1. Escanear e parsear o JSON, **ignorando campos desconhecidos** (para
+   tolerar acréscimos futuros).
+2. Aceitar `port` como número **ou** string. O servidor sempre manda número,
+   mas o `config.json` do protótipo gravava a porta como string e ser
+   tolerante aqui é barato.
+3. Validar: `ip` numérico válido, `port` entre 1 e 65535, `token` não vazio.
+4. **Chamar `GET /api/health` antes de salvar.** Só persistir a configuração
+   se responder 200 — assim um QR de outro app, ou um QR de um servidor que
+   já mudou de IP, falha na hora do pareamento em vez de virar um deck
+   quebrado.
+
+### Ciclo de vida do arquivo
+
+O PNG é gravado em `%LOCALAPPDATA%\AppDeck\pairing.png` com permissão
+restrita e **apagado quando o servidor é encerrado pelo menu "Sair"** — o
+arquivo carrega o token em claro e não deve ficar no disco. Encerrar o
+processo à força (Gerenciador de Tarefas) deixa o arquivo para trás; ele é
+sobrescrito no próximo "Mostrar QR".
 
 ---
 
