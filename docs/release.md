@@ -129,6 +129,30 @@ crie os quatro:
 O workflow decodifica a keystore para um arquivo temporário do runner e o
 apaga ao final, inclusive se o build falhar.
 
+Antes de compilar, ele **abre a keystore com a senha** para validar os dois
+secrets de uma vez, e depois de compilar **confere a assinatura do APK**. Um
+secret errado falha a tag com mensagem própria, em vez de publicar um APK
+silenciosamente assinado com a chave de debug.
+
+### Se o passo "Preparar a keystore" falhar
+
+Quase sempre é o base64 que chegou alterado. Um valor de ~5 mil caracteres
+passando pela área de transferência e por um formulário web costuma ganhar
+quebras de linha; o `certutil` do Windows, além disso, envolve o conteúdo em
+linhas `-----BEGIN-----`. O workflow tolera os dois casos, mas se o valor
+tiver sido **truncado** na cópia não há como salvar — refaça:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("$env:USERPROFILE\Documents\appdeck-release.jks")) | Set-Clipboard
+```
+
+Confira o tamanho esperado antes de colar, e compare com o número de bytes
+que o log do workflow reporta:
+
+```powershell
+(Get-Item "$env:USERPROFILE\Documents\appdeck-release.jks").Length
+```
+
 ### 4. Publicar
 
 ```powershell

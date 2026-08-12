@@ -131,20 +131,53 @@ jobs:
       - name: Testes e lint
         run: ./gradlew :app:testDebugUnitTest :app:lintDebug
 
-      # A ausência dos secrets não quebra a tag: o Gradle cai na chave de
-      # debug e o APK sai instalável do mesmo jeito, só que não atualizável
-      # por cima de uma instalação assinada com a chave de release.
+      # A ausência do secret não quebra a tag: o Gradle cai na chave de debug
+      # e o APK sai instalável, só que não atualizável por cima de uma
+      # instalação assinada com a chave de release.
+      #
+      # Já um secret *presente mas inválido* falha aqui, de propósito. Cair
+      # na chave de debug nesse caso seria pior que falhar: o APK publicado
+      # pareceria normal e só quebraria na hora de atualizar.
       - name: Preparar a keystore
         id: keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_BASE64" ]; then
             echo "signed=false" >> "$GITHUB_OUTPUT"
             echo "::warning::ANDROID_KEYSTORE_BASE64 ausente; o APK sairá assinado com a chave de debug."
             exit 0
           fi
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/appdeck.jks"
+
+          jks="$RUNNER_TEMP/appdeck.jks"
+
+          # Tolera o que a área de transferência e os formulários web fazem com
+          # um base64 de 5 mil caracteres: quebras de linha, espaços, e o
+          # envelope -----BEGIN/END----- que o certutil do Windows acrescenta.
+          # O base64 do coreutils recusa qualquer um desses caracteres.
+          if ! printf '%s' "$KEYSTORE_BASE64" \
+              | grep -v -- '-----' \
+              | tr -d '[:space:]' \
+              | base64 -d > "$jks" 2>/dev/null; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 não decodifica. Gere de novo com [Convert]::ToBase64String e cole o valor inteiro, sem editar."
+            exit 1
+          fi
+
+          if [ ! -s "$jks" ]; then
+            echo "::error::A keystore decodificada ficou vazia — o secret provavelmente foi truncado na cópia."
+            exit 1
+          fi
+          echo "Keystore decodificada: $(wc -c < "$jks") bytes (confira se bate com o arquivo .jks local)"
+
+          # Abrir a keystore aqui prova de uma vez que o base64 e a senha
+          # estão certos, com mensagem própria para cada caso — em vez de
+          # deixar o Gradle descobrir e cair silenciosamente no debug.
+          if ! keytool -list -keystore "$jks" -storepass "$KEYSTORE_PASSWORD" > /dev/null 2>&1; then
+            echo "::error::A keystore não abre com ANDROID_KEYSTORE_PASSWORD. Confira o secret da senha."
+            exit 1
+          fi
+
           echo "signed=true" >> "$GITHUB_OUTPUT"
 
       - name: Compilar o APK de release
@@ -157,6 +190,31 @@ jobs:
           ./gradlew :app:assembleRelease \
             -Pappdeck.versionName="${GITHUB_REF_NAME#v}" \
             -Pappdeck.versionCode="${GITHUB_RUN_NUMBER}"
+
+      # Sem isso, um APK assinado com a chave errada só seria descoberto pelo
+      # usuário, na hora em que a atualização se recusasse a instalar.
+      - name: Conferir a assinatura do APK
+        run: |
+          apk="app/build/outputs/apk/release/app-release.apk"
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          if [ -z "$apksigner" ]; then
+            echo "::warning::apksigner não encontrado; assinatura não verificada."
+            exit 0
+          fi
+
+          certs="$("$apksigner" verify --print-certs "$apk")"
+          dn="$(printf '%s' "$certs" | grep -m1 'certificate DN' || true)"
+          echo "$dn"
+
+          if printf '%s' "$dn" | grep -q 'CN=Android Debug'; then
+            if [ "${{ steps.keystore.outputs.signed }}" = "true" ]; then
+              echo "::error::O APK saiu com a chave de DEBUG apesar de a keystore ter sido preparada. Assinatura não foi aplicada."
+              exit 1
+            fi
+            echo "::warning::APK assinado com a chave de debug. Ele instala, mas não atualiza por cima de um APK assinado com chave de release."
+          else
+            echo "APK assinado com a chave de release."
+          fi
 
       - name: Renomear e somar
         run: |
