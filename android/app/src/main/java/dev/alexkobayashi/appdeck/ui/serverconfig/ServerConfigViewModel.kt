@@ -146,7 +146,17 @@ class ServerConfigViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isScanning = true, testResult = null, scanError = null) }
 
-            when (val scan = scanner.scan()) {
+            // Segunda barreira, redundante de propósito: uma falha ao ler um
+            // QR code jamais deve derrubar o app. O leitor já protege por
+            // dentro, mas ele fala com o Play Services, cuja superfície de
+            // erro não é totalmente previsível — e em release passa pelo R8.
+            val scan = try {
+                scanner.scan()
+            } catch (e: Throwable) {
+                ScanResult.Failed(e)
+            }
+
+            when (scan) {
                 ScanResult.Cancelled ->
                     _uiState.update { it.copy(isScanning = false) }
 

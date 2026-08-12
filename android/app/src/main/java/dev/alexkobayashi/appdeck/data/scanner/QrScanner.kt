@@ -57,9 +57,14 @@ class GmsQrScanner(private val activityContext: Context) : QrScanner {
         .enableAutoZoom()
         .build()
 
-    override suspend fun scan(): ScanResult {
-        if (!ensureModuleAvailable()) return ScanResult.ModuleUnavailable
-        return startScan()
+    override suspend fun scan(): ScanResult = try {
+        if (ensureModuleAvailable()) startScan() else ScanResult.ModuleUnavailable
+    } catch (e: Throwable) {
+        // Throwable, não Exception: se o R8 remover uma classe do Play
+        // Services, o que chega aqui é NoClassDefFoundError, que é Error e
+        // passaria batido por catch(Exception) — derrubando o app.
+        Log.w(TAG, "leitura de QR falhou", e)
+        ScanResult.Failed(e)
     }
 
     /**
@@ -70,8 +75,24 @@ class GmsQrScanner(private val activityContext: Context) : QrScanner {
      * sem pista de que era só aguardar um download.
      */
     private suspend fun ensureModuleAvailable(): Boolean = suspendCancellableCoroutine { cont ->
-        val client = GmsBarcodeScanning.getClient(activityContext, options)
-        val moduleInstall = ModuleInstall.getClient(activityContext)
+        // Tudo aqui é chamada síncrona ao Play Services e pode lançar antes
+        // de qualquer listener ser registrado. Sem esta proteção a exceção
+        // escapa da corrotina e fecha o app — foi o que aconteceu.
+        val client = try {
+            GmsBarcodeScanning.getClient(activityContext, options)
+        } catch (e: Throwable) {
+            Log.w(TAG, "não foi possível criar o cliente de leitura", e)
+            cont.resume(false)
+            return@suspendCancellableCoroutine
+        }
+
+        val moduleInstall = try {
+            ModuleInstall.getClient(activityContext)
+        } catch (e: Throwable) {
+            Log.w(TAG, "Play Services indisponível para instalar o módulo", e)
+            cont.resume(false)
+            return@suspendCancellableCoroutine
+        }
 
         moduleInstall.areModulesAvailable(client)
             .addOnSuccessListener { response ->
@@ -79,13 +100,18 @@ class GmsQrScanner(private val activityContext: Context) : QrScanner {
                     cont.resume(true)
                     return@addOnSuccessListener
                 }
-                moduleInstall
-                    .installModules(ModuleInstallRequest.newBuilder().addApi(client).build())
-                    .addOnSuccessListener { cont.resume(true) }
-                    .addOnFailureListener { error ->
-                        Log.w(TAG, "instalação do módulo de leitura falhou", error)
-                        cont.resume(false)
-                    }
+                try {
+                    moduleInstall
+                        .installModules(ModuleInstallRequest.newBuilder().addApi(client).build())
+                        .addOnSuccessListener { cont.resume(true) }
+                        .addOnFailureListener { error ->
+                            Log.w(TAG, "instalação do módulo de leitura falhou", error)
+                            cont.resume(false)
+                        }
+                } catch (e: Throwable) {
+                    Log.w(TAG, "pedido de instalação do módulo falhou", e)
+                    cont.resume(false)
+                }
             }
             .addOnFailureListener { error ->
                 // Sem Play Services, areModulesAvailable já falha aqui.
@@ -115,7 +141,7 @@ class GmsQrScanner(private val activityContext: Context) : QrScanner {
                     Log.w(TAG, "startScan falhou", error)
                     cont.resume(ScanResult.Failed(error))
                 }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.w(TAG, "startScan lançou exceção", e)
             cont.resume(ScanResult.Failed(e))
         }
