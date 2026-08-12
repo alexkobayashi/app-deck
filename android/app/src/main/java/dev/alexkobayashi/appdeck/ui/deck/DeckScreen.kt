@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -15,16 +16,12 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Face
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -32,9 +29,9 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,6 +46,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -56,12 +54,23 @@ import dev.alexkobayashi.appdeck.AppContainer
 import dev.alexkobayashi.appdeck.R
 import dev.alexkobayashi.appdeck.domain.model.DeckItem
 import dev.alexkobayashi.appdeck.ui.common.apiErrorMessage
-import dev.alexkobayashi.appdeck.ui.deck.components.ConnectionBadge
+import dev.alexkobayashi.appdeck.ui.deck.components.DeckMenuButton
 import dev.alexkobayashi.appdeck.ui.deck.components.DeckTile
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyGridState
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Distância do botão de menu às bordas da tela. */
+private val OverlayPadding = 8.dp
+
+/**
+ * Topo maior que os outros lados para reservar a faixa do botão de menu
+ * (8dp de padding + 40dp do botão + 8dp de folga). Voltar o `top` para 16dp
+ * faz a grade usar a altura inteira, com o botão flutuando por cima do
+ * primeiro tile.
+ */
+private val GridContentPadding =
+    PaddingValues(start = 16.dp, top = 56.dp, end = 16.dp, bottom = 16.dp)
+
 @Composable
 fun DeckScreen(
     container: AppContainer,
@@ -98,61 +107,11 @@ fun DeckScreen(
         message?.id?.let(viewModel::consumeMessage)
     }
 
+    // Sem topBar: o deck ocupa a tela toda e o único controle fixo é o botão
+    // de menu sobreposto no canto superior esquerdo. O Scaffold fica só pelo
+    // snackbar e pelos insets do sistema.
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(stringResource(R.string.deck_title))
-                        if (editMode) {
-                            Text(
-                                text = stringResource(R.string.deck_edit_hint),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        } else {
-                            ConnectionBadge(state.connection)
-                        }
-                    }
-                },
-                actions = {
-                    if (editMode) {
-                        TextButton(onClick = { editMode = false }) {
-                            Text(stringResource(R.string.deck_action_edit_done))
-                        }
-                    } else {
-                        IconButton(onClick = onAddShortcut, enabled = state.isConfigured) {
-                            Icon(
-                                Icons.Filled.Add,
-                                contentDescription = stringResource(R.string.deck_action_add),
-                            )
-                        }
-                        IconButton(onClick = viewModel::refresh, enabled = !state.isRefreshing) {
-                            Icon(
-                                Icons.Filled.Refresh,
-                                contentDescription = stringResource(R.string.deck_action_refresh),
-                            )
-                        }
-                        IconButton(
-                            onClick = { editMode = true },
-                            enabled = state.items.isNotEmpty(),
-                        ) {
-                            Icon(
-                                Icons.Filled.Edit,
-                                contentDescription = stringResource(R.string.deck_action_edit),
-                            )
-                        }
-                        IconButton(onClick = onOpenSettings) {
-                            Icon(
-                                Icons.Filled.Settings,
-                                contentDescription = stringResource(R.string.deck_action_settings),
-                            )
-                        }
-                    }
-                },
-            )
-        },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (state.isRefreshing) {
@@ -188,6 +147,29 @@ fun DeckScreen(
                     onOrderChanged = viewModel::saveOrder,
                 )
             }
+
+            // Sobreposto por último para ficar acima da grade. No modo de
+            // edição o botão dá lugar ao "Concluir": sem ele não haveria como
+            // sair do modo, já que o header foi embora.
+            val overlayModifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(OverlayPadding)
+
+            if (editMode) {
+                EditModeBar(onDone = { editMode = false }, modifier = overlayModifier)
+            } else {
+                DeckMenuButton(
+                    status = state.connection,
+                    canAdd = state.isConfigured,
+                    canRefresh = !state.isRefreshing,
+                    canEdit = state.items.isNotEmpty(),
+                    onAdd = onAddShortcut,
+                    onRefresh = viewModel::refresh,
+                    onEdit = { editMode = true },
+                    onSettings = onOpenSettings,
+                    modifier = overlayModifier,
+                )
+            }
         }
     }
 
@@ -204,6 +186,36 @@ fun DeckScreen(
                 onEditShortcut(item.id)
             },
         )
+    }
+}
+
+/**
+ * Faixa do modo de edição, no lugar do botão de menu: saída do modo mais a
+ * dica de como reordenar.
+ */
+@Composable
+private fun EditModeBar(onDone: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        modifier = modifier,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.padding(end = 12.dp),
+        ) {
+            TextButton(onClick = onDone) {
+                Text(stringResource(R.string.deck_action_edit_done))
+            }
+            Text(
+                text = stringResource(R.string.deck_edit_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -261,7 +273,7 @@ private fun DeckGrid(
         // Adaptive em vez de um número fixo de colunas: o mesmo layout serve
         // para celular em retrato, paisagem e tablet.
         columns = GridCells.Adaptive(minSize = 104.dp),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = GridContentPadding,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize(),

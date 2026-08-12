@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Só para diferenciar "Wi-Fi desligado" de "servidor não responde". -->
@@ -27,11 +28,25 @@
         android:fullBackupContent="@xml/backup_rules"
         android:allowBackup="false">
 
+        <!--
+          fullSensor em vez do padrão (unspecified): o deck é usado tanto em
+          pé quanto deitado, e unspecified obedece a trava de rotação do
+          sistema — com o giro automático desligado o app não virava, o
+          Android só oferecia aquele botão de sugestão de rotação. fullSensor
+          segue o sensor nas 4 orientações, ignorando a trava.
+
+          tools:ignore="DiscouragedApi": o lint avisa que o Android 16+ ignora
+          screenOrientation em telas grandes (sw >= 600dp). Aceitável — o alvo
+          é celular, onde o atributo continua valendo, e a UI é adaptativa de
+          qualquer forma (grade com GridCells.Adaptive).
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:screenOrientation="fullSensor"
             android:windowSoftInputMode="adjustResize"
-            android:theme="@style/Theme.AppDeck">
+            android:theme="@style/Theme.AppDeck"
+            tools:ignore="DiscouragedApi">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

@@ -3,7 +3,11 @@
     <string name="app_name">App Deck</string>
 
     <!-- Tela do deck -->
-    <string name="deck_title">Meu Deck</string>
+    <!--
+      Sem título na tela: o deck ocupa a tela inteira e as ações migraram
+      para o menu do canto superior esquerdo.
+    -->
+    <string name="deck_menu_open">Abrir menu</string>
     <string name="deck_action_refresh">Recarregar atalhos</string>
     <string name="deck_action_settings">Configurar servidor</string>
     <string name="deck_action_edit">Reorganizar atalhos</string>
