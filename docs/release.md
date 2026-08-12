@@ -1,5 +1,8 @@
 # Publicar uma versão
 
+> Os comandos deste documento são **PowerShell**. Abra o PowerShell (não o
+> CMD) — no CMD a sintaxe é diferente e eles falham.
+
 Uma tag `v*` empacota **os dois** artefatos no mesmo GitHub Release: o `.exe`
 do servidor e o `.apk` do app.
 
@@ -31,18 +34,33 @@ pretenda atualizar depois.
 
 ### 1. Gerar a keystore
 
-O `keytool` vem com o JDK do Android Studio:
+> Todos os comandos deste documento são **PowerShell**, não CMD. No CMD a
+> sintaxe é outra (`%VAR%` em vez de `$env:VAR`, sem `&` para chamar
+> executável) e eles falham.
+
+O `keytool` vem com o JDK do Android Studio, mas **não está no PATH** — por
+isso `keytool` solto não funciona. Chame pelo caminho completo:
 
 ```powershell
-& "$env:JAVA_HOME\bin\keytool" -genkeypair -v `
-  -keystore "$env:USERPROFILE\Documents\appdeck-release.jks" `
-  -alias appdeck `
-  -keyalg RSA -keysize 4096 -validity 10000 `
-  -storetype PKCS12
+& "C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe" -genkeypair -v -keystore "$env:USERPROFILE\Documents\appdeck-release.jks" -alias appdeck -keyalg RSA -keysize 4096 -validity 10000 -storetype PKCS12
 ```
 
-Ele pede uma senha e alguns dados (nome, organização, cidade). Os dados podem
-ser o que você quiser — não são verificados por ninguém.
+Ele pede, nesta ordem:
+
+1. uma **senha** para a keystore, duas vezes — guarde, ela vira dois dos
+   secrets;
+2. nome, organização, cidade e país — pode ser qualquer coisa, nada disso é
+   verificado;
+3. uma confirmação (`sim` / `yes`).
+
+O `-validity 10000` dá pouco mais de 27 anos. Um certificado expirado impede
+publicar atualizações, então não economize aqui.
+
+Para conferir depois que existe e está legível:
+
+```powershell
+& "C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe" -list -v -keystore "$env:USERPROFILE\Documents\appdeck-release.jks"
+```
 
 > **Guarde essa keystore e a senha fora do repositório e faça backup.**
 > Perder o arquivo ou a senha significa nunca mais conseguir publicar uma
