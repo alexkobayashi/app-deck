@@ -17,6 +17,16 @@
         android:fullBackupContent="@xml/backup_rules"
         android:allowBackup="false">
 
+        <!--
+          Declara o módulo de leitura de QR como dependência, para o Play
+          Services instalá-lo junto com o app. Sem isto ele só é buscado sob
+          demanda na primeira leitura, e um app recém-instalado falha com
+          "não foi possível abrir o leitor".
+        -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="barcode_ui" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

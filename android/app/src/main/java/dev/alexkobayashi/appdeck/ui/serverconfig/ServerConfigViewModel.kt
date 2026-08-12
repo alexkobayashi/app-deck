@@ -30,7 +30,10 @@ enum class ScanError {
     /** Leu algo, mas não era um pareamento do App Deck. */
     NotAPairingCode,
 
-    /** Sem Play Services, módulo indisponível, câmera ocupada. */
+    /** O módulo de leitura do Play Services ainda não está no aparelho. */
+    ModuleUnavailable,
+
+    /** Sem Play Services, câmera ocupada, ou falha inesperada. */
     ScannerUnavailable,
 }
 
@@ -146,6 +149,11 @@ class ServerConfigViewModel(
             when (val scan = scanner.scan()) {
                 ScanResult.Cancelled ->
                     _uiState.update { it.copy(isScanning = false) }
+
+                ScanResult.ModuleUnavailable ->
+                    _uiState.update {
+                        it.copy(isScanning = false, scanError = ScanError.ModuleUnavailable)
+                    }
 
                 is ScanResult.Failed ->
                     _uiState.update {

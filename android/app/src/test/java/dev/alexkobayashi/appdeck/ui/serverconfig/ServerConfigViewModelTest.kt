@@ -232,6 +232,19 @@ class ServerConfigViewModelTest {
         assertFalse(vm.uiState.value.isScanning)
     }
 
+    // Distinto de ScannerUnavailable porque a acao do usuario e outra: aqui e
+    // aguardar o download do modulo, nao desistir e digitar a mao.
+    @Test
+    fun `modulo ainda nao baixado tem erro proprio`() = runTest {
+        val vm = viewModel()
+
+        vm.scanAndPair(FakeScanner(ScanResult.ModuleUnavailable))
+        advanceUntilIdle()
+
+        assertEquals(ScanError.ModuleUnavailable, vm.uiState.value.scanError)
+        assertFalse(vm.uiState.value.isScanning)
+    }
+
     @Test
     fun `salvar com formulario incompleto nao faz nada`() = runTest {
         val vm = viewModel()

@@ -59,6 +59,7 @@ fun ServerConfigScreen(
 
     val scanErrorText = when (state.scanError) {
         ScanError.NotAPairingCode -> stringResource(R.string.config_scan_not_pairing)
+        ScanError.ModuleUnavailable -> stringResource(R.string.config_scan_module)
         ScanError.ScannerUnavailable -> stringResource(R.string.config_scan_unavailable)
         null -> null
     }
