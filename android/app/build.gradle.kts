@@ -25,12 +25,48 @@ val keystorePassword = signingValue("storePassword", "ANDROID_KEYSTORE_PASSWORD"
 val keystoreAlias = signingValue("keyAlias", "ANDROID_KEY_ALIAS")
 val keystoreKeyPassword = signingValue("keyPassword", "ANDROID_KEY_PASSWORD")
 
-val hasReleaseSigning = listOf(
-    keystorePath,
-    keystorePassword,
-    keystoreAlias,
-    keystoreKeyPassword,
-).all { !it.isNullOrBlank() } && file(keystorePath!!).exists()
+/**
+ * Assinar foi *pedido* se existe qualquer sinal de intenção — o arquivo de
+ * propriedades ou uma variável de ambiente.
+ */
+val signingRequested = rootProject.file("keystore.properties").exists() ||
+    listOf(keystorePath, keystorePassword, keystoreAlias, keystoreKeyPassword)
+        .any { !it.isNullOrBlank() }
+
+val missingSigningFields = mapOf(
+    "storeFile / ANDROID_KEYSTORE_PATH" to keystorePath,
+    "storePassword / ANDROID_KEYSTORE_PASSWORD" to keystorePassword,
+    "keyAlias / ANDROID_KEY_ALIAS" to keystoreAlias,
+    "keyPassword / ANDROID_KEY_PASSWORD" to keystoreKeyPassword,
+).filterValues { it.isNullOrBlank() }.keys
+
+val keystoreFile = keystorePath?.takeIf { it.isNotBlank() }?.let { file(it) }
+
+// Assinatura pedida mas incompleta ou apontando para arquivo inexistente é
+// erro, não motivo para cair na chave de debug. O fallback silencioso existia
+// aqui e custou um APK publicado com a chave errada: o build passava, o APK
+// parecia normal, e a falha só apareceria na hora de atualizar.
+if (signingRequested) {
+    if (missingSigningFields.isNotEmpty()) {
+        error(
+            "Assinatura de release configurada pela metade. Faltam: " +
+                missingSigningFields.joinToString(", ") +
+                ". Complete o android/keystore.properties (ou as variáveis de ambiente), " +
+                "ou apague o arquivo para compilar com a chave de debug.",
+        )
+    }
+    if (keystoreFile == null || !keystoreFile.exists()) {
+        error(
+            "A keystore não existe em '$keystorePath'. Confira o storeFile no " +
+                "android/keystore.properties — o modelo em docs/release.md usa " +
+                "SEU_USUARIO como espaço reservado, que precisa ser substituído. " +
+                "Use barras normais (/), porque em .properties a barra invertida " +
+                "é caractere de escape.",
+        )
+    }
+}
+
+val hasReleaseSigning = signingRequested
 
 plugins {
     alias(libs.plugins.android.application)
@@ -58,7 +94,7 @@ android {
     signingConfigs {
         if (hasReleaseSigning) {
             create("release") {
-                storeFile = file(keystorePath!!)
+                storeFile = keystoreFile
                 storePassword = keystorePassword
                 keyAlias = keystoreAlias
                 keyPassword = keystoreKeyPassword

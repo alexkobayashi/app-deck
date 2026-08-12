@@ -96,8 +96,30 @@ keyAlias=appdeck
 keyPassword=SUA_SENHA
 ```
 
-Use barras normais (`/`) mesmo no Windows: é um arquivo `.properties`, onde a
-barra invertida é caractere de escape.
+Duas armadilhas, ambas já cobradas pelo build:
+
+- **`SEU_USUARIO` e `SUA_SENHA` são espaços reservados.** Substitua pelos
+  seus valores. O comando abaixo gera o arquivo já com o caminho certo:
+
+  ```powershell
+  @"
+  storeFile=$($env:USERPROFILE -replace '\\','/')/Documents/appdeck-release.jks
+  storePassword=SUA_SENHA
+  keyAlias=appdeck
+  keyPassword=SUA_SENHA
+  "@ | Set-Content "$env:USERPROFILE\GitHub\app-deck\android\keystore.properties" -Encoding ascii
+  ```
+
+  Depois edite só as duas senhas.
+
+- **Use barras normais (`/`)** mesmo no Windows: em `.properties` a barra
+  invertida é caractere de escape, e `C:\Users\...` chega ao Gradle como
+  `C:Users...`.
+
+Se o arquivo existir mas estiver incompleto ou apontar para uma keystore
+inexistente, o build **falha** dizendo o que está errado. Ele não cai na
+chave de debug: um APK de release assinado com a chave errada passa por
+normal e só quebra na hora de atualizar.
 
 ```powershell
 cd android
