@@ -56,11 +56,26 @@ Ele pede, nesta ordem:
 O `-validity 10000` dá pouco mais de 27 anos. Um certificado expirado impede
 publicar atualizações, então não economize aqui.
 
-Para conferir depois que existe e está legível:
+Para conferir que existe e está legível:
 
 ```powershell
-& "C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe" -list -v -keystore "$env:USERPROFILE\Documents\appdeck-release.jks"
+& "C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe" -list -keystore "$env:USERPROFILE\Documents\appdeck-release.jks"
 ```
+
+Deve listar uma entrada `appdeck` do tipo `PrivateKeyEntry`, com o fingerprint
+SHA-256.
+
+> **Não use `-list -v` em Windows com idioma português.** O `keytool` quebra
+> com `MissingFormatArgumentException: Format specifier '%2$s'` — é um bug de
+> localização dele (a mensagem traduzida sobre restrição de algoritmo tem um
+> marcador que o código não preenche). O erro acontece ao *imprimir* o
+> certificado, depois de já tê-lo lido: a keystore está intacta e o Gradle a
+> usa sem problema. Se precisar dos detalhes completos, force o inglês — as
+> aspas são obrigatórias, senão o PowerShell parte o argumento:
+>
+> ```powershell
+> & "C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe" "-J-Duser.language=en" "-J-Duser.country=US" -list -v -keystore "$env:USERPROFILE\Documents\appdeck-release.jks"
+> ```
 
 > **Guarde essa keystore e a senha fora do repositório e faça backup.**
 > Perder o arquivo ou a senha significa nunca mais conseguir publicar uma
