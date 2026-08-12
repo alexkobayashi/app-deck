@@ -57,7 +57,7 @@ jobs:
           go build -o /tmp/app-deck-server.exe ./cmd/deck-server
 
       - name: Publicar cobertura
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: server-coverage
           path: server/coverage.out
