@@ -7,7 +7,9 @@ O contrato completo da API está em [`docs/api.md`](../docs/api.md).
 
 ## Compilar
 
-Requer Go 1.23 ou mais novo.
+Requer Go 1.25 ou mais novo (exigência que veio junto com `golang.org/x/sys`,
+usada para o autostart no registro do Windows). Quem só quer usar o servidor
+baixa o `.exe` pronto do Release e não precisa de Go.
 
 ```bash
 cd server

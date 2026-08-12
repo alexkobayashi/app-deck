@@ -14,25 +14,27 @@ rede Wi-Fi.
 
 | Componente | Estado |
 |---|---|
-| Servidor Go — API JSON (`server/`) | **Funcional** |
-| Servidor Go — bandeja, autostart, QR | **Funcional** |
+| Servidor Go (`server/`) | **Funcional** |
+| App Android (`android/`) | **Funcional** |
 | Documentação da API (`docs/api.md`) | **Completa** (contrato v2) |
-| App Android — deck e configuração (`android/`) | **Funcional** |
-| App Android — ícones, reordenar, CRUD, QR | Em desenvolvimento |
 | Protótipo de referência (`reference/`) | Funcional (histórico) |
 
 **Servidor:** API JSON (`/api/health`, CRUD de atalhos e `launch`) com
 autenticação por token no header, persistência atômica do `config.json`,
 logging estruturado, ícone na bandeja do sistema, inicialização automática com
-o Windows e QR code de pareamento. Ver [server/README.md](server/README.md).
+o Windows e QR code de pareamento. Requer Go 1.25+ para compilar; quem só usa
+baixa o `.exe` do Release. Ver [server/README.md](server/README.md).
 
 **App Android:** Kotlin + Compose. Grade de atalhos que abre os programas no
-PC, configuração manual do servidor com teste de conexão, indicador de status
-e cache local para o deck abrir instantâneo e continuar visível offline. Ver
-[android/README.md](android/README.md).
+PC, ícone customizável por atalho (emoji ou foto da galeria), reordenação por
+arrasto, criar/editar/excluir atalhos pelo app, pareamento por QR code,
+indicador de conexão e cache local para o deck abrir instantâneo e continuar
+visível offline. Ver [android/README.md](android/README.md).
 
-Falta a customização de ícone, reordenar por arrastar, gerenciar atalhos pelo
-app e o pareamento por QR code do lado do celular.
+Fora do escopo por ora: pacote de ícones vetoriais embutidos (das três origens
+de ícone previstas, emoji e galeria estão feitas), múltiplos servidores no
+mesmo app, e persistir a ordem dos atalhos no servidor — hoje ela é preferência
+local do aparelho.
 
 Veja o roadmap completo em [CLAUDE.md](CLAUDE.md).
 
@@ -43,8 +45,12 @@ Veja o roadmap completo em [CLAUDE.md](CLAUDE.md).
 Windows e pareamento por QR code.
 
 **App Android nativo** — Kotlin + Jetpack Compose. Grade de atalhos com ícone
-totalmente customizável (galeria do dispositivo, pacote de ícones embutido ou
-emoji), reordenação por arrasto e gerenciamento dos atalhos direto pelo app.
+customizável por atalho (emoji ou foto da galeria), reordenação por arrasto e
+gerenciamento dos atalhos direto pelo app.
+
+O ícone é escolhido e guardado **no aparelho**, amarrado ao `id` estável de
+cada atalho — o servidor nunca sabe nada sobre ícones. Renomear o atalho ou
+trocar o executável no PC não perde a escolha.
 
 ## Segurança e escopo de rede
 
@@ -83,19 +89,27 @@ cd android
 ./gradlew :app:installDebug
 ```
 
-No app, toque na engrenagem e informe IP, porta e token (ambos aparecem no log
-do servidor e no `config.json`). Detalhes em
-[android/README.md](android/README.md).
+No app, toque na engrenagem e em **Escanear QR do servidor** — na bandeja do
+Windows, o menu do App Deck tem "Mostrar QR de pareamento". Isso evita digitar
+o token de 43 caracteres no teclado do celular. Configurar à mão (IP, porta,
+token) continua disponível. Detalhes em [android/README.md](android/README.md).
+
+Um atalho é um par `path` + `args`. Além de programas, dá para abrir sites,
+apps instalados pelo Chrome e o terminal como administrador — as receitas
+prontas, com as limitações de cada uma, estão em
+[docs/atalhos.md](docs/atalhos.md).
 
 ## Estrutura do repositório
 
 ```
 app-deck/
-├── server/              # servidor Go — API JSON, funcional
-├── android/             # app Android (em desenvolvimento)
+├── server/              # servidor Go — API JSON, bandeja, autostart, QR
+├── android/             # app Android — Kotlin + Compose
 ├── docs/api.md          # contrato da API entre os dois projetos
+├── docs/atalhos.md      # receitas de atalhos (sites, PWAs, terminal admin)
+├── docs/release.md      # como publicar uma versão (keystore, secrets, tag)
 ├── reference/           # protótipo original — consulta apenas, não editar
-└── .github/workflows/   # CI: build + testes
+└── .github/workflows/   # CI: build + testes; release por tag
 ```
 
 O protótipo original continua disponível em
