@@ -310,18 +310,27 @@ registrados no log do servidor.
 Se o PC não tiver nenhum IPv4 utilizável, nenhum QR é gerado — mostrar um QR
 que o app não conseguiria usar seria pior que a mensagem de erro no log.
 
-### O que o app deve fazer
+### O que o app faz
 
-1. Escanear e parsear o JSON, **ignorando campos desconhecidos** (para
+Implementado no app Android (`ui/serverconfig` + `data/scanner`):
+
+1. Escaneia e interpreta o JSON, **ignorando campos desconhecidos** (para
    tolerar acréscimos futuros).
-2. Aceitar `port` como número **ou** string. O servidor sempre manda número,
+2. Aceita `port` como número **ou** string. O servidor sempre manda número,
    mas o `config.json` do protótipo gravava a porta como string e ser
    tolerante aqui é barato.
-3. Validar: `ip` numérico válido, `port` entre 1 e 65535, `token` não vazio.
-4. **Chamar `GET /api/health` antes de salvar.** Só persistir a configuração
-   se responder 200 — assim um QR de outro app, ou um QR de um servidor que
-   já mudou de IP, falha na hora do pareamento em vez de virar um deck
-   quebrado.
+3. Valida: `ip` sem esquema nem barra, `port` entre 1 e 65535, `token` não
+   vazio.
+4. **Chama `GET /api/health` antes de salvar.** A configuração só é
+   persistida se responder 200 — assim um QR de outro app, ou um QR de um
+   servidor que já mudou de IP, falha na hora do pareamento em vez de virar
+   um deck quebrado. Se a validação falhar, os campos ficam preenchidos com o
+   que foi lido, para o usuário corrigir à mão em vez de recomeçar.
+
+O leitor usa o Google Play Services (`play-services-code-scanner`), que
+**não exige permissão de câmera** — a captura roda no processo do Play
+Services. Em aparelhos sem Play Services a leitura falha com mensagem
+própria e a configuração manual continua disponível.
 
 ### Ciclo de vida do arquivo
 

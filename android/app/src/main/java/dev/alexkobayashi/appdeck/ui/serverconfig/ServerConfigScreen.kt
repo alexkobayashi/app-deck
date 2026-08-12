@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -37,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.alexkobayashi.appdeck.AppContainer
 import dev.alexkobayashi.appdeck.R
+import dev.alexkobayashi.appdeck.data.scanner.GmsQrScanner
 import dev.alexkobayashi.appdeck.ui.common.apiErrorMessage
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,6 +52,23 @@ fun ServerConfigScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val savedText = stringResource(R.string.config_saved)
+
+    // O leitor precisa de um Context de Activity: ele abre uma tela própria.
+    val context = LocalContext.current
+    val scanner = remember(context) { GmsQrScanner(context) }
+
+    val scanErrorText = when (state.scanError) {
+        ScanError.NotAPairingCode -> stringResource(R.string.config_scan_not_pairing)
+        ScanError.ScannerUnavailable -> stringResource(R.string.config_scan_unavailable)
+        null -> null
+    }
+
+    LaunchedEffect(state.scanError) {
+        scanErrorText?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.consumeScanError()
+        }
+    }
 
     LaunchedEffect(state.justSaved) {
         if (state.justSaved) {
@@ -81,6 +101,31 @@ fun ServerConfigScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            // O QR vem primeiro: é o caminho que dispensa digitar 43
+            // caracteres de token no teclado do celular.
+            Button(
+                onClick = { viewModel.scanAndPair(scanner) },
+                enabled = !state.isScanning,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (state.isScanning) {
+                    CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                } else {
+                    Text(stringResource(R.string.config_action_scan))
+                }
+            }
+            Text(
+                text = stringResource(R.string.config_scan_help),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            HorizontalDivider()
+            Text(
+                text = stringResource(R.string.config_or_manual),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
             OutlinedTextField(
                 value = state.host,
                 onValueChange = viewModel::onHostChange,

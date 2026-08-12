@@ -2,6 +2,8 @@ package dev.alexkobayashi.appdeck.ui.serverconfig
 
 import dev.alexkobayashi.appdeck.data.remote.ApiError
 import dev.alexkobayashi.appdeck.data.remote.ApiResult
+import dev.alexkobayashi.appdeck.data.scanner.QrScanner
+import dev.alexkobayashi.appdeck.data.scanner.ScanResult
 import dev.alexkobayashi.appdeck.domain.model.ServerConfig
 import dev.alexkobayashi.appdeck.testing.FakeServerConfigRepository
 import dev.alexkobayashi.appdeck.testing.MainDispatcherRule
@@ -152,6 +154,82 @@ class ServerConfigViewModelTest {
         // costuma trazer sujeira.
         assertEquals(ServerConfig("192.168.0.10", 5050, "tok"), repository.saved)
         assertTrue(vm.uiState.value.justSaved)
+    }
+
+    // --- Pareamento por QR ---
+
+    private class FakeScanner(private val result: ScanResult) : QrScanner {
+        override suspend fun scan(): ScanResult = result
+    }
+
+    @Test
+    fun `escanear um QR valido preenche, valida e salva`() = runTest {
+        val vm = viewModel()
+        val qr = """{"ip":"192.168.3.186","port":5050,"token":"token-do-servidor"}"""
+
+        vm.scanAndPair(FakeScanner(ScanResult.Success(qr)))
+        advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertEquals("192.168.3.186", state.host)
+        assertEquals("5050", state.port)
+        assertEquals("token-do-servidor", state.token)
+        assertEquals(ServerConfig("192.168.3.186", 5050, "token-do-servidor"), repository.saved)
+        assertTrue(state.justSaved)
+    }
+
+    // O ponto central do fluxo: um QR de um servidor que ja mudou de IP nao
+    // pode ser persistido, senao vira um deck quebrado descoberto depois.
+    @Test
+    fun `QR que nao responde e preenchido mas nao salvo`() = runTest {
+        repository.testResult = ApiResult.Failure(ApiError.NoConnection())
+        val vm = viewModel()
+        val qr = """{"ip":"192.168.9.99","port":5050,"token":"tok"}"""
+
+        vm.scanAndPair(FakeScanner(ScanResult.Success(qr)))
+        advanceUntilIdle()
+
+        val state = vm.uiState.value
+        // Preenchido, para o usuário ver o que foi lido e poder corrigir.
+        assertEquals("192.168.9.99", state.host)
+        assertNull(repository.saved)
+        assertFalse(state.justSaved)
+        assertTrue(state.testResult is TestResult.Failed)
+    }
+
+    @Test
+    fun `QR de outro app vira erro especifico`() = runTest {
+        val vm = viewModel()
+
+        vm.scanAndPair(FakeScanner(ScanResult.Success("https://exemplo.com")))
+        advanceUntilIdle()
+
+        assertEquals(ScanError.NotAPairingCode, vm.uiState.value.scanError)
+        assertNull(repository.saved)
+    }
+
+    @Test
+    fun `fechar o leitor nao e erro`() = runTest {
+        val vm = viewModel()
+
+        vm.scanAndPair(FakeScanner(ScanResult.Cancelled))
+        advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertNull(state.scanError)
+        assertFalse(state.isScanning)
+        assertNull(repository.saved)
+    }
+
+    @Test
+    fun `leitor indisponivel sugere preenchimento manual`() = runTest {
+        val vm = viewModel()
+
+        vm.scanAndPair(FakeScanner(ScanResult.Failed(IllegalStateException("sem Play Services"))))
+        advanceUntilIdle()
+
+        assertEquals(ScanError.ScannerUnavailable, vm.uiState.value.scanError)
+        assertFalse(vm.uiState.value.isScanning)
     }
 
     @Test

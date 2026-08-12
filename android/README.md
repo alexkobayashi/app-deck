@@ -43,15 +43,28 @@ lint, KSP e R8, derruba o daemon com *"insufficient memory"* numa máquina de
 
 ## Primeiro uso
 
-1. Rode o servidor no PC e anote o IP mostrado no log e o token do
-   `config.json`.
-2. No app, toque na engrenagem, preencha **IP**, **porta** (5050) e **token**.
-3. Toque em **Testar conexão** — ele chama `GET /api/health` sem salvar nada,
-   então um endereço errado falha ali e não vira um deck quebrado.
-4. **Salvar**. A grade carrega e cada toque abre o programa no PC.
+1. Rode o servidor no PC.
+2. No app, toque na engrenagem e em **Escanear QR do servidor**.
+3. Na bandeja do Windows, clique no ícone do App Deck → **Mostrar QR de
+   pareamento**, e aponte a câmera.
+
+O app valida o endereço com `GET /api/health` antes de salvar, então um QR de
+outro app ou de um servidor que mudou de IP falha na hora do pareamento.
+
+Se preferir configurar à mão, os mesmos campos (IP, porta, token) estão logo
+abaixo — o IP aparece no log do servidor e o token está no `config.json`. O
+botão **Testar conexão** verifica sem salvar nada.
 
 O celular precisa estar na mesma rede Wi-Fi do PC, e a porta liberada no
 Firewall do Windows para "Redes privadas".
+
+## Usando o deck
+
+- **Tocar** num atalho abre o programa no PC.
+- **Tocar e segurar** abre o menu: trocar ícone ou editar o atalho.
+- **+** na barra cria um atalho novo (gravado no `config.json` do PC).
+- **Lápis** entra no modo de reorganização: arraste os tiles e toque em
+  *Concluir*. A ordem é preferência local, guardada só no aparelho.
 
 ## Decisões de arquitetura
 
@@ -134,7 +147,14 @@ app/src/main/java/dev/alexkobayashi/appdeck/
 
 ## Fora do escopo desta versão
 
-Customização de ícone (galeria, pacote embutido, emoji), reordenar por
-arrastar, criar/editar/excluir atalhos pelo app e pareamento por QR code. O
-ícone atual é as iniciais do nome num círculo, e a `id` estável de cada atalho
-já é a chave pela qual a customização vai ser guardada.
+- **Pacote de ícones vetoriais embutidos.** Das três origens de ícone
+  previstas no spec, emoji e galeria estão implementadas; o pacote embutido
+  foi dispensado por dar muito trabalho para pouca diferença prática. O
+  modelo já suporta (`ShortcutIcon.Builtin`, `IconType.BUILTIN`), então
+  acrescentar depois não exige migração de banco.
+- **Recorte manual da imagem.** A foto escolhida é recortada no centro
+  automaticamente.
+- **Mais de um servidor.** A coluna `server_key` já existe reservada na
+  tabela de customização, para não exigir migração dolorosa depois.
+- **Persistir a ordem no servidor.** Hoje é preferência local; o endpoint
+  `PUT /api/apps/order` está reservado em `docs/api.md`.

@@ -9,6 +9,9 @@ import dev.alexkobayashi.appdeck.AppContainer
 import dev.alexkobayashi.appdeck.data.remote.ApiError
 import dev.alexkobayashi.appdeck.data.remote.ApiResult
 import dev.alexkobayashi.appdeck.data.repository.ServerConfigRepository
+import dev.alexkobayashi.appdeck.data.scanner.QrScanner
+import dev.alexkobayashi.appdeck.data.scanner.ScanResult
+import dev.alexkobayashi.appdeck.domain.model.PairingPayload
 import dev.alexkobayashi.appdeck.domain.model.ServerConfig
 import dev.alexkobayashi.appdeck.domain.model.ServerConfigState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,12 +25,23 @@ sealed interface TestResult {
     data class Failed(val error: ApiError) : TestResult
 }
 
+/** Falhas de leitura do QR que a tela precisa distinguir. */
+enum class ScanError {
+    /** Leu algo, mas não era um pareamento do App Deck. */
+    NotAPairingCode,
+
+    /** Sem Play Services, módulo indisponível, câmera ocupada. */
+    ScannerUnavailable,
+}
+
 data class ServerConfigUiState(
     val host: String = "",
     val port: String = ServerConfig.DEFAULT_PORT.toString(),
     val token: String = "",
     val isTesting: Boolean = false,
+    val isScanning: Boolean = false,
     val testResult: TestResult? = null,
+    val scanError: ScanError? = null,
     val justSaved: Boolean = false,
 ) {
     val hostError: Boolean get() = host.isNotEmpty() && !isHostValid(host)
@@ -44,7 +58,7 @@ data class ServerConfigUiState(
             return ServerConfig(host.trim(), p, token.trim())
         }
 
-    val canSubmit: Boolean get() = config != null && !isTesting
+    val canSubmit: Boolean get() = config != null && !isTesting && !isScanning
 }
 
 /**
@@ -114,7 +128,78 @@ class ServerConfigViewModel(
         }
     }
 
+    /**
+     * Lê o QR mostrado pela bandeja do servidor e pareia.
+     *
+     * O fluxo é: ler → interpretar → **validar com /api/health** → só então
+     * salvar. Validar antes de persistir faz um QR de outro app, ou de um
+     * servidor cujo IP já mudou, falhar na hora do pareamento em vez de virar
+     * um deck quebrado que o usuário vai descobrir depois.
+     *
+     * O scanner vem de fora porque precisa de um Context de Activity — e
+     * porque assim o ViewModel é testável sem câmera.
+     */
+    fun scanAndPair(scanner: QrScanner) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isScanning = true, testResult = null, scanError = null) }
+
+            when (val scan = scanner.scan()) {
+                ScanResult.Cancelled ->
+                    _uiState.update { it.copy(isScanning = false) }
+
+                is ScanResult.Failed ->
+                    _uiState.update {
+                        it.copy(isScanning = false, scanError = ScanError.ScannerUnavailable)
+                    }
+
+                is ScanResult.Success -> {
+                    val payload = PairingPayload.parse(scan.raw)
+                    if (payload == null) {
+                        _uiState.update {
+                            it.copy(isScanning = false, scanError = ScanError.NotAPairingCode)
+                        }
+                        return@launch
+                    }
+
+                    // Preenche o formulário mesmo antes de validar: se a
+                    // validação falhar, o usuário vê o que foi lido e pode
+                    // corrigir à mão em vez de recomeçar do zero.
+                    _uiState.update {
+                        it.copy(
+                            host = payload.ip,
+                            port = payload.port.toString(),
+                            token = payload.token,
+                        )
+                    }
+
+                    when (val health = repository.testConnection(payload.toServerConfig())) {
+                        is ApiResult.Success -> {
+                            repository.save(payload.toServerConfig())
+                            _uiState.update {
+                                it.copy(
+                                    isScanning = false,
+                                    justSaved = true,
+                                    testResult = TestResult.Ok(health.value.version),
+                                )
+                            }
+                        }
+
+                        is ApiResult.Failure ->
+                            _uiState.update {
+                                it.copy(
+                                    isScanning = false,
+                                    testResult = TestResult.Failed(health.error),
+                                )
+                            }
+                    }
+                }
+            }
+        }
+    }
+
     fun consumeSaved() = update { it.copy(justSaved = false) }
+
+    fun consumeScanError() = update { it.copy(scanError = null) }
 
     private inline fun update(block: (ServerConfigUiState) -> ServerConfigUiState) {
         _uiState.update(block)
