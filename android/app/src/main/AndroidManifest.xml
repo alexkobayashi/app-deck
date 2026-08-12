@@ -5,6 +5,16 @@
     <!-- Só para diferenciar "Wi-Fi desligado" de "servidor não responde". -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!--
+      Câmera para ler o QR de pareamento. A leitura é feita no próprio app
+      (CameraX + ML Kit embutido) em vez de delegar ao Play Services, para o
+      app não depender da Play Store — que pode estar restrita, ausente, ou
+      simplesmente não ter sido usada para instalar este APK.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- required=false: sem câmera o app segue útil, só sem leitura de QR. -->
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+
     <application
         android:name=".AppDeckApplication"
         android:label="@string/app_name"
@@ -16,16 +26,6 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:allowBackup="false">
-
-        <!--
-          Declara o módulo de leitura de QR como dependência, para o Play
-          Services instalá-lo junto com o app. Sem isto ele só é buscado sob
-          demanda na primeira leitura, e um app recém-instalado falha com
-          "não foi possível abrir o leitor".
-        -->
-        <meta-data
-            android:name="com.google.mlkit.vision.DEPENDENCIES"
-            android:value="barcode_ui" />
 
         <activity
             android:name=".MainActivity"

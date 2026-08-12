@@ -104,6 +104,15 @@ android {
 
     buildTypes {
         release {
+            // A biblioteca nativa do ML Kit (libbarhopper_v3.so) pesa de 3 a 6
+            // MB por arquitetura; incluindo as quatro, o APK ia de 2 para 23
+            // MB. x86 e x86_64 existem só para emuladores, e ninguém instala
+            // APK de release em emulador — o build de debug continua com todas
+            // as arquiteturas, então o emulador segue funcionando.
+            ndk {
+                abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+            }
+
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -173,7 +182,11 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.androidx.exifinterface)
     implementation(libs.reorderable)
-    implementation(libs.play.services.code.scanner)
+
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.mlkit.barcode.scanning)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

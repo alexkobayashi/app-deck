@@ -42,8 +42,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.alexkobayashi.appdeck.AppContainer
 import dev.alexkobayashi.appdeck.R
-import dev.alexkobayashi.appdeck.data.scanner.GmsQrScanner
 import dev.alexkobayashi.appdeck.ui.common.apiErrorMessage
+import dev.alexkobayashi.appdeck.ui.scanner.QrScannerDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,26 +56,24 @@ fun ServerConfigScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val savedText = stringResource(R.string.config_saved)
 
-    // O leitor precisa de um Context de Activity: ele abre uma tela própria.
-    val context = LocalContext.current
-    val scanner = remember(context) { GmsQrScanner(context) }
+    var showScanner by rememberSaveable { mutableStateOf(false) }
+    val notPairingText = stringResource(R.string.config_scan_not_pairing)
 
-    val scanErrorText = when (state.scanError) {
-        ScanError.NotAPairingCode -> stringResource(R.string.config_scan_not_pairing)
-        is ScanError.ModuleUnavailable -> stringResource(R.string.config_scan_module)
-        is ScanError.ScannerUnavailable -> stringResource(R.string.config_scan_unavailable)
-        null -> null
+    LaunchedEffect(state.notAPairingCode) {
+        if (state.notAPairingCode) {
+            snackbarHostState.showSnackbar(notPairingText)
+            viewModel.consumeScanError()
+        }
     }
 
-    // O detalhe fica na tela, não numa snackbar: ele precisa ficar visível
-    // tempo suficiente para o usuário ler e reportar.
-    var scanDetail by rememberSaveable { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(state.scanError) {
-        val error = state.scanError ?: return@LaunchedEffect
-        scanDetail = error.detail
-        scanErrorText?.let { snackbarHostState.showSnackbar(it) }
-        viewModel.consumeScanError()
+    if (showScanner) {
+        QrScannerDialog(
+            onCode = { raw ->
+                showScanner = false
+                viewModel.pairWithScannedCode(raw)
+            },
+            onDismiss = { showScanner = false },
+        )
     }
 
     LaunchedEffect(state.justSaved) {
@@ -112,7 +110,7 @@ fun ServerConfigScreen(
             // O QR vem primeiro: é o caminho que dispensa digitar 43
             // caracteres de token no teclado do celular.
             Button(
-                onClick = { viewModel.scanAndPair(scanner) },
+                onClick = { showScanner = true },
                 enabled = !state.isScanning,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -128,13 +126,6 @@ fun ServerConfigScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            scanDetail?.let { detail ->
-                Text(
-                    text = stringResource(R.string.config_scan_detail, detail),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
             HorizontalDivider()
             Text(
                 text = stringResource(R.string.config_or_manual),

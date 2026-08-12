@@ -79,7 +79,13 @@
     <string name="config_scan_help">Na bandeja do Windows, clique no ícone do App Deck e escolha \"Mostrar QR de pareamento\"</string>
     <string name="config_scan_not_pairing">Esse QR code não é um pareamento do App Deck</string>
     <string name="config_scan_unavailable">Não foi possível abrir o leitor. Preencha os campos manualmente.</string>
-    <string name="config_scan_module">O leitor de QR está sendo baixado pelo Google Play. Conecte à internet e tente de novo em alguns instantes.</string>
     <string name="config_scan_detail">Detalhe técnico: %1$s</string>
+
+    <!-- Leitor de QR -->
+    <string name="scan_aim_at_qr">Aponte a câmera para o QR code mostrado pelo servidor</string>
+    <string name="scan_waiting_permission">Aguardando permissão da câmera…</string>
+    <string name="scan_permission_title">Permissão da câmera necessária</string>
+    <string name="scan_permission_body">A leitura do QR acontece dentro do app, sem enviar imagem para lugar nenhum. Você também pode preencher IP, porta e token manualmente.</string>
+    <string name="scan_open_settings">Abrir configurações do app</string>
     <string name="config_or_manual">ou preencha manualmente</string>
 </resources>

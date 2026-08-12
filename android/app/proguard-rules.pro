@@ -17,12 +17,12 @@
 -keepattributes Signature, InnerClasses, EnclosingMethod
 -keepattributes RuntimeVisibleAnnotations, AnnotationDefault
 
-# Leitor de QR do Play Services.
+# ML Kit embutido (leitura de QR).
 #
-# As bibliotecas do GMS trazem regras próprias, mas o leitor de código e a
-# instalação dinâmica de módulos são carregados por reflexão em runtime, e
-# esta é a única funcionalidade do app que existe apenas em release — uma
-# quebra aqui não aparece em nenhum build de debug.
--keep class com.google.mlkit.vision.codescanner.** { *; }
--keep class com.google.android.gms.common.moduleinstall.** { *; }
+# A biblioteca traz regras próprias, mas o modelo é carregado por reflexão a
+# partir dos assets do APK. A leitura de QR é a única funcionalidade que
+# depende de minificação para se manifestar — uma quebra aqui não aparece em
+# nenhum build de debug, que foi como um problema anterior escapou.
+-keep class com.google.mlkit.vision.barcode.** { *; }
+-keep class com.google.mlkit.vision.common.** { *; }
 -dontwarn com.google.mlkit.**

@@ -2,8 +2,6 @@ package dev.alexkobayashi.appdeck.ui.serverconfig
 
 import dev.alexkobayashi.appdeck.data.remote.ApiError
 import dev.alexkobayashi.appdeck.data.remote.ApiResult
-import dev.alexkobayashi.appdeck.data.scanner.QrScanner
-import dev.alexkobayashi.appdeck.data.scanner.ScanResult
 import dev.alexkobayashi.appdeck.domain.model.ServerConfig
 import dev.alexkobayashi.appdeck.testing.FakeServerConfigRepository
 import dev.alexkobayashi.appdeck.testing.MainDispatcherRule
@@ -157,17 +155,17 @@ class ServerConfigViewModelTest {
     }
 
     // --- Pareamento por QR ---
-
-    private class FakeScanner(private val result: ScanResult) : QrScanner {
-        override suspend fun scan(): ScanResult = result
-    }
+    //
+    // A câmera vive inteiramente na camada de UI (QrScannerDialog), então
+    // estes testes exercitam o pareamento passando o texto lido — sem
+    // câmera, sem emulador e sem dublê de scanner.
 
     @Test
     fun `escanear um QR valido preenche, valida e salva`() = runTest {
         val vm = viewModel()
         val qr = """{"ip":"192.168.3.186","port":5050,"token":"token-do-servidor"}"""
 
-        vm.scanAndPair(FakeScanner(ScanResult.Success(qr)))
+        vm.pairWithScannedCode(qr)
         advanceUntilIdle()
 
         val state = vm.uiState.value
@@ -186,7 +184,7 @@ class ServerConfigViewModelTest {
         val vm = viewModel()
         val qr = """{"ip":"192.168.9.99","port":5050,"token":"tok"}"""
 
-        vm.scanAndPair(FakeScanner(ScanResult.Success(qr)))
+        vm.pairWithScannedCode(qr)
         advanceUntilIdle()
 
         val state = vm.uiState.value
@@ -198,55 +196,27 @@ class ServerConfigViewModelTest {
     }
 
     @Test
-    fun `QR de outro app vira erro especifico`() = runTest {
+    fun `QR de outro app e sinalizado e nao salva nada`() = runTest {
         val vm = viewModel()
 
-        vm.scanAndPair(FakeScanner(ScanResult.Success("https://exemplo.com")))
+        vm.pairWithScannedCode("https://exemplo.com")
         advanceUntilIdle()
 
-        assertEquals(ScanError.NotAPairingCode, vm.uiState.value.scanError)
+        assertTrue(vm.uiState.value.notAPairingCode)
+        assertFalse(vm.uiState.value.isScanning)
         assertNull(repository.saved)
     }
 
     @Test
-    fun `fechar o leitor nao e erro`() = runTest {
+    fun `consumir o aviso de QR invalido limpa o estado`() = runTest {
         val vm = viewModel()
-
-        vm.scanAndPair(FakeScanner(ScanResult.Cancelled))
+        vm.pairWithScannedCode("texto solto")
         advanceUntilIdle()
+        assertTrue(vm.uiState.value.notAPairingCode)
 
-        val state = vm.uiState.value
-        assertNull(state.scanError)
-        assertFalse(state.isScanning)
-        assertNull(repository.saved)
-    }
+        vm.consumeScanError()
 
-    @Test
-    fun `leitor indisponivel sugere preenchimento manual`() = runTest {
-        val vm = viewModel()
-
-        vm.scanAndPair(FakeScanner(ScanResult.Failed(IllegalStateException("sem Play Services"))))
-        advanceUntilIdle()
-
-        assertTrue(vm.uiState.value.scanError is ScanError.ScannerUnavailable)
-        assertFalse(vm.uiState.value.isScanning)
-    }
-
-    // Distinto de ScannerUnavailable porque a acao do usuario e outra: aqui e
-    // aguardar o download do modulo, nao desistir e digitar a mao.
-    @Test
-    fun `modulo ainda nao baixado tem erro proprio, com o detalhe preservado`() = runTest {
-        val vm = viewModel()
-
-        vm.scanAndPair(FakeScanner(ScanResult.ModuleUnavailable("installModules: ApiException código 8")))
-        advanceUntilIdle()
-
-        val error = vm.uiState.value.scanError
-        assertTrue(error is ScanError.ModuleUnavailable)
-        // O detalhe tem que chegar à tela: sem cabo USB, ele é o único
-        // diagnóstico disponível.
-        assertEquals("installModules: ApiException código 8", error?.detail)
-        assertFalse(vm.uiState.value.isScanning)
+        assertFalse(vm.uiState.value.notAPairingCode)
     }
 
     @Test

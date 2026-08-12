@@ -9,8 +9,6 @@ import dev.alexkobayashi.appdeck.AppContainer
 import dev.alexkobayashi.appdeck.data.remote.ApiError
 import dev.alexkobayashi.appdeck.data.remote.ApiResult
 import dev.alexkobayashi.appdeck.data.repository.ServerConfigRepository
-import dev.alexkobayashi.appdeck.data.scanner.QrScanner
-import dev.alexkobayashi.appdeck.data.scanner.ScanResult
 import dev.alexkobayashi.appdeck.domain.model.PairingPayload
 import dev.alexkobayashi.appdeck.domain.model.ServerConfig
 import dev.alexkobayashi.appdeck.domain.model.ServerConfigState
@@ -26,27 +24,8 @@ sealed interface TestResult {
 }
 
 /** Falhas de leitura do QR que a tela precisa distinguir. */
-/**
- * [detail] é o motivo técnico, exibido na tela quando existe.
- *
- * Mostrar detalhe técnico ao usuário normalmente é ruído, mas este APK é
- * distribuído fora da Play Store e não tem canal de relatório de erro — sem
- * isso, diagnosticar uma falha do leitor depende de cabo USB.
- */
-sealed interface ScanError {
-    val detail: String?
-
-    /** Leu algo, mas não era um pareamento do App Deck. */
-    data object NotAPairingCode : ScanError {
-        override val detail: String? = null
-    }
-
-    /** O módulo de leitura do Play Services ainda não está no aparelho. */
-    data class ModuleUnavailable(override val detail: String?) : ScanError
-
-    /** Sem Play Services, câmera ocupada, ou falha inesperada. */
-    data class ScannerUnavailable(override val detail: String?) : ScanError
-}
+/** Leu um QR code, mas ele não era um pareamento do App Deck. */
+data object NotAPairingCode
 
 data class ServerConfigUiState(
     val host: String = "",
@@ -55,7 +34,8 @@ data class ServerConfigUiState(
     val isTesting: Boolean = false,
     val isScanning: Boolean = false,
     val testResult: TestResult? = null,
-    val scanError: ScanError? = null,
+    /** Verdadeiro quando o QR lido não era um pareamento do App Deck. */
+    val notAPairingCode: Boolean = false,
     val justSaved: Boolean = false,
 ) {
     val hostError: Boolean get() = host.isNotEmpty() && !isHostValid(host)
@@ -143,100 +123,62 @@ class ServerConfigViewModel(
     }
 
     /**
-     * Lê o QR mostrado pela bandeja do servidor e pareia.
+     * Pareia com o conteúdo lido de um QR code.
      *
-     * O fluxo é: ler → interpretar → **validar com /api/health** → só então
-     * salvar. Validar antes de persistir faz um QR de outro app, ou de um
-     * servidor cujo IP já mudou, falhar na hora do pareamento em vez de virar
-     * um deck quebrado que o usuário vai descobrir depois.
+     * O fluxo é: interpretar → **validar com /api/health** → só então salvar.
+     * Validar antes de persistir faz um QR de outro app, ou de um servidor
+     * cujo IP já mudou, falhar na hora do pareamento em vez de virar um deck
+     * quebrado que o usuário vai descobrir depois.
      *
-     * O scanner vem de fora porque precisa de um Context de Activity — e
-     * porque assim o ViewModel é testável sem câmera.
+     * A câmera fica inteiramente na camada de UI: este ViewModel só recebe
+     * texto, o que o torna testável sem câmera nem emulador.
      */
-    fun scanAndPair(scanner: QrScanner) {
+    fun pairWithScannedCode(raw: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isScanning = true, testResult = null, scanError = null) }
-
-            // Segunda barreira, redundante de propósito: uma falha ao ler um
-            // QR code jamais deve derrubar o app. O leitor já protege por
-            // dentro, mas ele fala com o Play Services, cuja superfície de
-            // erro não é totalmente previsível — e em release passa pelo R8.
-            val scan = try {
-                scanner.scan()
-            } catch (e: Throwable) {
-                ScanResult.Failed(e)
+            _uiState.update {
+                it.copy(isScanning = true, testResult = null, notAPairingCode = false)
             }
 
-            when (scan) {
-                ScanResult.Cancelled ->
-                    _uiState.update { it.copy(isScanning = false) }
+            val payload = PairingPayload.parse(raw)
+            if (payload == null) {
+                _uiState.update { it.copy(isScanning = false, notAPairingCode = true) }
+                return@launch
+            }
 
-                is ScanResult.ModuleUnavailable ->
+            // Preenche o formulário mesmo antes de validar: se a validação
+            // falhar, o usuário vê o que foi lido e pode corrigir à mão em vez
+            // de recomeçar do zero.
+            _uiState.update {
+                it.copy(
+                    host = payload.ip,
+                    port = payload.port.toString(),
+                    token = payload.token,
+                )
+            }
+
+            when (val health = repository.testConnection(payload.toServerConfig())) {
+                is ApiResult.Success -> {
+                    repository.save(payload.toServerConfig())
                     _uiState.update {
                         it.copy(
                             isScanning = false,
-                            scanError = ScanError.ModuleUnavailable(scan.detail),
+                            justSaved = true,
+                            testResult = TestResult.Ok(health.value.version),
                         )
-                    }
-
-                is ScanResult.Failed ->
-                    _uiState.update {
-                        it.copy(
-                            isScanning = false,
-                            scanError = ScanError.ScannerUnavailable(
-                                scan.cause?.let { c -> "${c.javaClass.simpleName}: ${c.message}" },
-                            ),
-                        )
-                    }
-
-                is ScanResult.Success -> {
-                    val payload = PairingPayload.parse(scan.raw)
-                    if (payload == null) {
-                        _uiState.update {
-                            it.copy(isScanning = false, scanError = ScanError.NotAPairingCode)
-                        }
-                        return@launch
-                    }
-
-                    // Preenche o formulário mesmo antes de validar: se a
-                    // validação falhar, o usuário vê o que foi lido e pode
-                    // corrigir à mão em vez de recomeçar do zero.
-                    _uiState.update {
-                        it.copy(
-                            host = payload.ip,
-                            port = payload.port.toString(),
-                            token = payload.token,
-                        )
-                    }
-
-                    when (val health = repository.testConnection(payload.toServerConfig())) {
-                        is ApiResult.Success -> {
-                            repository.save(payload.toServerConfig())
-                            _uiState.update {
-                                it.copy(
-                                    isScanning = false,
-                                    justSaved = true,
-                                    testResult = TestResult.Ok(health.value.version),
-                                )
-                            }
-                        }
-
-                        is ApiResult.Failure ->
-                            _uiState.update {
-                                it.copy(
-                                    isScanning = false,
-                                    testResult = TestResult.Failed(health.error),
-                                )
-                            }
                     }
                 }
+
+                is ApiResult.Failure ->
+                    _uiState.update {
+                        it.copy(isScanning = false, testResult = TestResult.Failed(health.error))
+                    }
             }
         }
     }
 
     fun consumeSaved() = update { it.copy(justSaved = false) }
 
-    fun consumeScanError() = update { it.copy(scanError = null) }
+    fun consumeScanError() = update { it.copy(notAPairingCode = false) }
 
     private inline fun update(block: (ServerConfigUiState) -> ServerConfigUiState) {
         _uiState.update(block)

@@ -17,7 +17,10 @@ room = "2.8.4"
 coil = "3.5.0"
 exifinterface = "1.4.2"
 reorderable = "3.1.0"
-codeScanner = "16.1.0"
+# Leitura de QR sem depender do Play Store: CameraX para a câmera e o ML Kit
+# embutido (não o play-services-mlkit-*, que baixa o modelo em runtime).
+camerax = "1.6.1"
+mlkitBarcode = "17.3.0"
 
 # Rede
 retrofit = "3.0.0"
@@ -55,9 +58,13 @@ compose-material-icons-core = { group = "androidx.compose.material", name = "mat
 # resolver autoscroll, haptics e animação de item na mão.
 reorderable = { group = "sh.calvin.reorderable", name = "reorderable", version.ref = "reorderable" }
 
-# Leitor de QR do Google Play Services: não exige permissão de câmera, porque
-# a captura roda no processo do Play Services, não no do app.
-play-services-code-scanner = { group = "com.google.android.gms", name = "play-services-code-scanner", version.ref = "codeScanner" }
+# Câmera e leitura de QR, ambas autocontidas no APK.
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+# barcode-scanning (e não play-services-mlkit-barcode-scanning): esta versão
+# carrega o modelo dentro do APK, sem download nem Play Store.
+mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkitBarcode" }
 
 # Coil carrega o ícone escolhido na galeria a partir do armazenamento interno.
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
