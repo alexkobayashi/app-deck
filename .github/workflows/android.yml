@@ -34,7 +34,7 @@ jobs:
           java-version: "21"
 
       # Cuida do cache do Gradle e valida o hash da distribuição do wrapper.
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       # O runner ubuntu já traz o Android SDK; sem local.properties, o AGP usa
       # ANDROID_HOME — mesma configuração usada no build local.
