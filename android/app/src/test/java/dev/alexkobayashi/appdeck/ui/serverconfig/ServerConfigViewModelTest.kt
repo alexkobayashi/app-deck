@@ -228,20 +228,24 @@ class ServerConfigViewModelTest {
         vm.scanAndPair(FakeScanner(ScanResult.Failed(IllegalStateException("sem Play Services"))))
         advanceUntilIdle()
 
-        assertEquals(ScanError.ScannerUnavailable, vm.uiState.value.scanError)
+        assertTrue(vm.uiState.value.scanError is ScanError.ScannerUnavailable)
         assertFalse(vm.uiState.value.isScanning)
     }
 
     // Distinto de ScannerUnavailable porque a acao do usuario e outra: aqui e
     // aguardar o download do modulo, nao desistir e digitar a mao.
     @Test
-    fun `modulo ainda nao baixado tem erro proprio`() = runTest {
+    fun `modulo ainda nao baixado tem erro proprio, com o detalhe preservado`() = runTest {
         val vm = viewModel()
 
-        vm.scanAndPair(FakeScanner(ScanResult.ModuleUnavailable))
+        vm.scanAndPair(FakeScanner(ScanResult.ModuleUnavailable("installModules: ApiException código 8")))
         advanceUntilIdle()
 
-        assertEquals(ScanError.ModuleUnavailable, vm.uiState.value.scanError)
+        val error = vm.uiState.value.scanError
+        assertTrue(error is ScanError.ModuleUnavailable)
+        // O detalhe tem que chegar à tela: sem cabo USB, ele é o único
+        // diagnóstico disponível.
+        assertEquals("installModules: ApiException código 8", error?.detail)
         assertFalse(vm.uiState.value.isScanning)
     }
 

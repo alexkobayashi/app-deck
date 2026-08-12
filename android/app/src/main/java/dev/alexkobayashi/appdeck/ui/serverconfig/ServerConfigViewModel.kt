@@ -26,15 +26,26 @@ sealed interface TestResult {
 }
 
 /** Falhas de leitura do QR que a tela precisa distinguir. */
-enum class ScanError {
+/**
+ * [detail] é o motivo técnico, exibido na tela quando existe.
+ *
+ * Mostrar detalhe técnico ao usuário normalmente é ruído, mas este APK é
+ * distribuído fora da Play Store e não tem canal de relatório de erro — sem
+ * isso, diagnosticar uma falha do leitor depende de cabo USB.
+ */
+sealed interface ScanError {
+    val detail: String?
+
     /** Leu algo, mas não era um pareamento do App Deck. */
-    NotAPairingCode,
+    data object NotAPairingCode : ScanError {
+        override val detail: String? = null
+    }
 
     /** O módulo de leitura do Play Services ainda não está no aparelho. */
-    ModuleUnavailable,
+    data class ModuleUnavailable(override val detail: String?) : ScanError
 
     /** Sem Play Services, câmera ocupada, ou falha inesperada. */
-    ScannerUnavailable,
+    data class ScannerUnavailable(override val detail: String?) : ScanError
 }
 
 data class ServerConfigUiState(
@@ -160,14 +171,22 @@ class ServerConfigViewModel(
                 ScanResult.Cancelled ->
                     _uiState.update { it.copy(isScanning = false) }
 
-                ScanResult.ModuleUnavailable ->
+                is ScanResult.ModuleUnavailable ->
                     _uiState.update {
-                        it.copy(isScanning = false, scanError = ScanError.ModuleUnavailable)
+                        it.copy(
+                            isScanning = false,
+                            scanError = ScanError.ModuleUnavailable(scan.detail),
+                        )
                     }
 
                 is ScanResult.Failed ->
                     _uiState.update {
-                        it.copy(isScanning = false, scanError = ScanError.ScannerUnavailable)
+                        it.copy(
+                            isScanning = false,
+                            scanError = ScanError.ScannerUnavailable(
+                                scan.cause?.let { c -> "${c.javaClass.simpleName}: ${c.message}" },
+                            ),
+                        )
                     }
 
                 is ScanResult.Success -> {

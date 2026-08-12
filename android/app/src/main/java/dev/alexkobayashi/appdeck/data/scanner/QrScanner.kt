@@ -22,8 +22,12 @@ sealed interface ScanResult {
      *
      * Distinto de [Failed] porque a ação do usuário é diferente: aqui é
      * esperar/conectar à internet, não desistir e digitar à mão.
+     *
+     * [detail] carrega o motivo do Play Services. Ele é exibido na tela de
+     * propósito: um APK distribuído fora da Play Store não tem canal de
+     * relatório de erro, e sem isso a única alternativa é adivinhar.
      */
-    data object ModuleUnavailable : ScanResult
+    data class ModuleUnavailable(val detail: String?) : ScanResult
 
     /** Sem Play Services, câmera ocupada, ou falha inesperada. */
     data class Failed(val cause: Throwable?) : ScanResult
@@ -58,7 +62,8 @@ class GmsQrScanner(private val activityContext: Context) : QrScanner {
         .build()
 
     override suspend fun scan(): ScanResult = try {
-        if (ensureModuleAvailable()) startScan() else ScanResult.ModuleUnavailable
+        val module = ensureModuleAvailable()
+        if (module == null) startScan() else ScanResult.ModuleUnavailable(module)
     } catch (e: Throwable) {
         // Throwable, não Exception: se o R8 remover uma classe do Play
         // Services, o que chega aqui é NoClassDefFoundError, que é Error e
@@ -70,54 +75,66 @@ class GmsQrScanner(private val activityContext: Context) : QrScanner {
     /**
      * Garante que o módulo de leitura existe, pedindo a instalação se faltar.
      *
-     * Sem esta checagem, o `startScan` de um app recém-instalado falha com uma
-     * exceção genérica e o usuário só vê "não foi possível abrir o leitor",
-     * sem pista de que era só aguardar um download.
+     * Devolve `null` quando o módulo está pronto, ou uma descrição curta do
+     * motivo quando não está — descrição que sobe até a tela, porque um APK
+     * distribuído fora da Play Store não tem outro canal de diagnóstico.
      */
-    private suspend fun ensureModuleAvailable(): Boolean = suspendCancellableCoroutine { cont ->
+    private suspend fun ensureModuleAvailable(): String? = suspendCancellableCoroutine { cont ->
         // Tudo aqui é chamada síncrona ao Play Services e pode lançar antes
         // de qualquer listener ser registrado. Sem esta proteção a exceção
         // escapa da corrotina e fecha o app — foi o que aconteceu.
         val client = try {
             GmsBarcodeScanning.getClient(activityContext, options)
         } catch (e: Throwable) {
-            Log.w(TAG, "não foi possível criar o cliente de leitura", e)
-            cont.resume(false)
+            cont.resume(describe("criar cliente", e))
             return@suspendCancellableCoroutine
         }
 
         val moduleInstall = try {
             ModuleInstall.getClient(activityContext)
         } catch (e: Throwable) {
-            Log.w(TAG, "Play Services indisponível para instalar o módulo", e)
-            cont.resume(false)
+            cont.resume(describe("ModuleInstall", e))
             return@suspendCancellableCoroutine
         }
 
         moduleInstall.areModulesAvailable(client)
             .addOnSuccessListener { response ->
                 if (response.areModulesAvailable()) {
-                    cont.resume(true)
+                    cont.resume(null)
                     return@addOnSuccessListener
                 }
                 try {
                     moduleInstall
                         .installModules(ModuleInstallRequest.newBuilder().addApi(client).build())
-                        .addOnSuccessListener { cont.resume(true) }
+                        .addOnSuccessListener { installResponse ->
+                            // installModules devolve assim que o pedido é
+                            // aceito, não quando o download termina. Se o
+                            // módulo já estava lá, dá para seguir direto.
+                            if (installResponse.areModulesAlreadyInstalled()) {
+                                cont.resume(null)
+                            } else {
+                                cont.resume("download iniciado")
+                            }
+                        }
                         .addOnFailureListener { error ->
-                            Log.w(TAG, "instalação do módulo de leitura falhou", error)
-                            cont.resume(false)
+                            cont.resume(describe("installModules", error))
                         }
                 } catch (e: Throwable) {
-                    Log.w(TAG, "pedido de instalação do módulo falhou", e)
-                    cont.resume(false)
+                    cont.resume(describe("installModules (sync)", e))
                 }
             }
             .addOnFailureListener { error ->
                 // Sem Play Services, areModulesAvailable já falha aqui.
-                Log.w(TAG, "consulta de disponibilidade do módulo falhou", error)
-                cont.resume(false)
+                cont.resume(describe("areModulesAvailable", error))
             }
+    }
+
+    /** Descrição curta e sem dado sensível, para caber num rodapé de tela. */
+    private fun describe(etapa: String, e: Throwable): String {
+        Log.w(TAG, "falha em $etapa", e)
+        val code = (e as? com.google.android.gms.common.api.ApiException)?.statusCode
+        val suffix = if (code != null) " código $code" else ""
+        return "$etapa: ${e.javaClass.simpleName}$suffix ${e.message.orEmpty()}".trim().take(180)
     }
 
     private suspend fun startScan(): ScanResult = suspendCancellableCoroutine { cont ->

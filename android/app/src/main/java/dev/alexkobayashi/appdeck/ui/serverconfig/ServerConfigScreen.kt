@@ -28,7 +28,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -59,16 +62,20 @@ fun ServerConfigScreen(
 
     val scanErrorText = when (state.scanError) {
         ScanError.NotAPairingCode -> stringResource(R.string.config_scan_not_pairing)
-        ScanError.ModuleUnavailable -> stringResource(R.string.config_scan_module)
-        ScanError.ScannerUnavailable -> stringResource(R.string.config_scan_unavailable)
+        is ScanError.ModuleUnavailable -> stringResource(R.string.config_scan_module)
+        is ScanError.ScannerUnavailable -> stringResource(R.string.config_scan_unavailable)
         null -> null
     }
 
+    // O detalhe fica na tela, não numa snackbar: ele precisa ficar visível
+    // tempo suficiente para o usuário ler e reportar.
+    var scanDetail by rememberSaveable { mutableStateOf<String?>(null) }
+
     LaunchedEffect(state.scanError) {
-        scanErrorText?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.consumeScanError()
-        }
+        val error = state.scanError ?: return@LaunchedEffect
+        scanDetail = error.detail
+        scanErrorText?.let { snackbarHostState.showSnackbar(it) }
+        viewModel.consumeScanError()
     }
 
     LaunchedEffect(state.justSaved) {
@@ -120,6 +127,14 @@ fun ServerConfigScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            scanDetail?.let { detail ->
+                Text(
+                    text = stringResource(R.string.config_scan_detail, detail),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             HorizontalDivider()
             Text(
                 text = stringResource(R.string.config_or_manual),
