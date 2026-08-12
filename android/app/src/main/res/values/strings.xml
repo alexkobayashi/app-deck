@@ -18,6 +18,26 @@
     <string name="icon_from_gallery">Escolher da galeria</string>
     <string name="icon_image_error">Não foi possível usar essa imagem</string>
 
+    <!-- Menu de atalho -->
+    <string name="deck_action_add">Adicionar atalho</string>
+    <string name="menu_change_icon">Trocar ícone</string>
+    <string name="menu_edit">Editar atalho</string>
+
+    <!-- Editor de atalho -->
+    <string name="editor_title_new">Novo atalho</string>
+    <string name="editor_title_edit">Editar atalho</string>
+    <string name="editor_name_label">Nome</string>
+    <string name="editor_path_label">Caminho do programa</string>
+    <string name="editor_path_help">Ex: C:\\Windows\\System32\\calc.exe — copie de \"Destino\" nas Propriedades do atalho no PC</string>
+    <string name="editor_args_label">Argumentos (opcional)</string>
+    <string name="editor_args_help">Separados por espaço, ex: --incognito. Argumento com espaço não é suportado nesta versão.</string>
+    <string name="editor_save">Salvar</string>
+    <string name="editor_delete">Excluir</string>
+    <string name="editor_cancel">Cancelar</string>
+    <string name="editor_delete_title">Excluir atalho?</string>
+    <string name="editor_delete_body">%1$s será removido do servidor, junto com o ícone escolhido aqui.</string>
+    <string name="editor_server_note">A alteração é gravada no config.json do PC.</string>
+
     <!-- Estados vazios -->
     <string name="deck_empty_title">Nenhum atalho ainda</string>
     <string name="deck_empty_body">Adicione atalhos no config.json do servidor e recarregue.</string>

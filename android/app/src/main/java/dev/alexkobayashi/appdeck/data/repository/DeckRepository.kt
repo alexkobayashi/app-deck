@@ -12,6 +12,7 @@ import dev.alexkobayashi.appdeck.data.remote.ApiResult
 import dev.alexkobayashi.appdeck.data.remote.DeckApi
 import dev.alexkobayashi.appdeck.data.remote.apiCall
 import dev.alexkobayashi.appdeck.data.remote.dto.AppDto
+import dev.alexkobayashi.appdeck.data.remote.dto.AppUpsertDto
 import dev.alexkobayashi.appdeck.data.remote.map
 import dev.alexkobayashi.appdeck.domain.model.DeckItem
 import dev.alexkobayashi.appdeck.domain.model.IconType
@@ -54,6 +55,19 @@ interface DeckRepository {
      * isso (está reservado como `PUT /api/apps/order` em docs/api.md).
      */
     suspend fun saveOrder(orderedAppIds: List<String>)
+
+    /** Cria um atalho no servidor. Devolve o id gerado por ele. */
+    suspend fun createShortcut(name: String, path: String, args: List<String>): ApiResult<String>
+
+    suspend fun updateShortcut(
+        id: String,
+        name: String,
+        path: String,
+        args: List<String>,
+    ): ApiResult<Unit>
+
+    /** Remove o atalho no servidor e a customização local dele. */
+    suspend fun deleteShortcut(id: String): ApiResult<Unit>
 }
 
 /**
@@ -148,6 +162,55 @@ class DefaultDeckRepository(
 
     override suspend fun saveOrder(orderedAppIds: List<String>) {
         customizationDao.saveOrder(orderedAppIds)
+    }
+
+    override suspend fun createShortcut(
+        name: String,
+        path: String,
+        args: List<String>,
+    ): ApiResult<String> {
+        notConfigured()?.let { return it }
+
+        val result = apiCall(json) {
+            api.create(AppUpsertDto(name = name, path = path, args = args))
+        }
+        // Recarrega para o atalho novo aparecer no deck sem esperar o
+        // próximo ciclo de polling.
+        if (result is ApiResult.Success) refresh()
+        return result.map { it.id }
+    }
+
+    override suspend fun updateShortcut(
+        id: String,
+        name: String,
+        path: String,
+        args: List<String>,
+    ): ApiResult<Unit> {
+        notConfigured()?.let { return it }
+
+        val result = apiCall(json) {
+            api.update(id, AppUpsertDto(name = name, path = path, args = args))
+        }
+        if (result is ApiResult.Success) refresh()
+        return result.map { }
+    }
+
+    override suspend fun deleteShortcut(id: String): ApiResult<Unit> {
+        notConfigured()?.let { return it }
+
+        val result = apiCall(json) { api.delete(id) }
+        if (result is ApiResult.Success) {
+            // Aqui a remoção da customização é intencional, diferente do
+            // refresh: o usuário apagou o atalho de propósito, então guardar
+            // o ícone dele só deixaria lixo.
+            val customization = customizationDao.findByAppId(id)
+            if (customization?.iconType == IconType.IMAGE) {
+                customization.iconRef?.let { iconFileStore?.delete(it) }
+            }
+            customizationDao.deleteByAppId(id)
+            refresh()
+        }
+        return result.map { }
     }
 
     /** Apaga o arquivo do ícone anterior, se havia um e ele não é mais usado. */

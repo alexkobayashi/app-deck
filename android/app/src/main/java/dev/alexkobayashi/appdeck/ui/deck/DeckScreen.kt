@@ -1,6 +1,7 @@
 package dev.alexkobayashi.appdeck.ui.deck
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,7 +15,9 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
@@ -23,7 +26,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -62,6 +67,8 @@ fun DeckScreen(
     container: AppContainer,
     onOpenSettings: () -> Unit,
     onEditIcon: (String) -> Unit,
+    onAddShortcut: () -> Unit,
+    onEditShortcut: (String) -> Unit,
     viewModel: DeckViewModel = viewModel(factory = DeckViewModel.factory(container)),
 ) {
     // collectAsStateWithLifecycle: para de coletar quando a tela sai de
@@ -73,6 +80,11 @@ fun DeckScreen(
     // Modo de edição explícito: sem ele, o toque longo teria dois
     // significados (arrastar e trocar ícone) e um atrapalharia o outro.
     var editMode by rememberSaveable { mutableStateOf(false) }
+
+    // Atalho cujo menu está aberto. O toque longo agora abre um menu em vez
+    // de ir direto ao seletor de ícone: descoberta por gesto invisível só
+    // funciona quando há uma ação óbvia, e agora são duas.
+    var menuFor by remember { mutableStateOf<DeckItem?>(null) }
 
     val message = state.message
     val launchedText = (message as? DeckMessage.Launched)
@@ -110,6 +122,12 @@ fun DeckScreen(
                             Text(stringResource(R.string.deck_action_edit_done))
                         }
                     } else {
+                        IconButton(onClick = onAddShortcut, enabled = state.isConfigured) {
+                            Icon(
+                                Icons.Filled.Add,
+                                contentDescription = stringResource(R.string.deck_action_add),
+                            )
+                        }
                         IconButton(onClick = viewModel::refresh, enabled = !state.isRefreshing) {
                             Icon(
                                 Icons.Filled.Refresh,
@@ -166,10 +184,55 @@ fun DeckScreen(
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.launch(item)
                     },
-                    onEditIcon = { item -> onEditIcon(item.id) },
+                    onEditIcon = { item -> menuFor = item },
                     onOrderChanged = viewModel::saveOrder,
                 )
             }
+        }
+    }
+
+    menuFor?.let { item ->
+        ShortcutMenuSheet(
+            item = item,
+            onDismiss = { menuFor = null },
+            onEditIcon = {
+                menuFor = null
+                onEditIcon(item.id)
+            },
+            onEditShortcut = {
+                menuFor = null
+                onEditShortcut(item.id)
+            },
+        )
+    }
+}
+
+/** Menu do toque longo: trocar ícone ou editar o atalho. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ShortcutMenuSheet(
+    item: DeckItem,
+    onDismiss: () -> Unit,
+    onEditIcon: () -> Unit,
+    onEditShortcut: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(modifier = Modifier.padding(bottom = 24.dp)) {
+            Text(
+                text = item.name,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.menu_change_icon)) },
+                leadingContent = { Icon(Icons.Filled.Face, contentDescription = null) },
+                modifier = Modifier.clickable(onClick = onEditIcon),
+            )
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.menu_edit)) },
+                leadingContent = { Icon(Icons.Filled.Edit, contentDescription = null) },
+                modifier = Modifier.clickable(onClick = onEditShortcut),
+            )
         }
     }
 }

@@ -85,9 +85,43 @@ class FakeDeckRepository : DeckRepository {
         items.value = orderedAppIds.mapNotNull(byId::get)
     }
 
+    var createResult: ApiResult<String> = ApiResult.Success("novo-id")
+    var updateResult: ApiResult<Unit> = ApiResult.Success(Unit)
+    var deleteResult: ApiResult<Unit> = ApiResult.Success(Unit)
+
+    override suspend fun createShortcut(
+        name: String,
+        path: String,
+        args: List<String>,
+    ): ApiResult<String> {
+        created += Triple(name, path, args)
+        return createResult
+    }
+
+    override suspend fun updateShortcut(
+        id: String,
+        name: String,
+        path: String,
+        args: List<String>,
+    ): ApiResult<Unit> {
+        updated += id to Triple(name, path, args)
+        return updateResult
+    }
+
+    override suspend fun deleteShortcut(id: String): ApiResult<Unit> {
+        deleted += id
+        if (deleteResult is ApiResult.Success) {
+            items.value = items.value.filterNot { it.id == id }
+        }
+        return deleteResult
+    }
+
     val iconsSet = mutableListOf<Pair<String, ShortcutIcon>>()
     val iconsCleared = mutableListOf<String>()
     val savedOrders = mutableListOf<List<String>>()
+    val created = mutableListOf<Triple<String, String, List<String>>>()
+    val updated = mutableListOf<Pair<String, Triple<String, String, List<String>>>>()
+    val deleted = mutableListOf<String>()
 }
 
 class FakeConnectionRepository : ConnectionRepository {
