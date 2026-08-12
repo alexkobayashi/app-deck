@@ -1,3 +1,37 @@
+import java.util.Properties
+
+/**
+ * Material de assinatura, vindo de duas origens possíveis:
+ *
+ *  - `keystore.properties` na raiz de `android/` (build local, ignorado pelo git);
+ *  - variáveis de ambiente (CI).
+ *
+ * Se nenhuma existir, o build de release cai na chave de debug. Isso é
+ * deliberado: um clone limpo, um PR de terceiro e o CI comum precisam
+ * conseguir rodar `assembleRelease` sem ter segredo nenhum — senão o R8 só
+ * seria exercitado na hora de publicar, que é o pior momento para descobrir
+ * que ele quebra a serialização.
+ */
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+fun signingValue(propertyName: String, envName: String): String? =
+    keystoreProperties.getProperty(propertyName) ?: System.getenv(envName)
+
+val keystorePath = signingValue("storeFile", "ANDROID_KEYSTORE_PATH")
+val keystorePassword = signingValue("storePassword", "ANDROID_KEYSTORE_PASSWORD")
+val keystoreAlias = signingValue("keyAlias", "ANDROID_KEY_ALIAS")
+val keystoreKeyPassword = signingValue("keyPassword", "ANDROID_KEY_PASSWORD")
+
+val hasReleaseSigning = listOf(
+    keystorePath,
+    keystorePassword,
+    keystoreAlias,
+    keystoreKeyPassword,
+).all { !it.isNullOrBlank() } && file(keystorePath!!).exists()
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -15,9 +49,21 @@ android {
         // praticamente todos os aparelhos em uso.
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        // Sobrescritos pelo workflow de release a partir da tag do git.
+        versionCode = (providers.gradleProperty("appdeck.versionCode").orNull ?: "1").toInt()
+        versionName = providers.gradleProperty("appdeck.versionName").orNull ?: "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(keystorePath!!)
+                storePassword = keystorePassword
+                keyAlias = keystoreAlias
+                keyPassword = keystoreKeyPassword
+            }
+        }
     }
 
     buildTypes {
@@ -28,10 +74,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            // Ainda não existe keystore de release: assinar com a chave de
-            // debug mantém o APK instalável e o build de qualquer clone
-            // funcionando. A fase de release troca por uma chave própria.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                // Sem chave própria, assina com a de debug: o APK continua
+                // instalável e o build de qualquer clone funciona.
+                signingConfigs.getByName("debug")
+            }
         }
     }
 

@@ -33,6 +33,17 @@ cd android
 Alternativamente, o Android Studio cria um `local.properties` apontando o SDK
 ao abrir o projeto (o arquivo é ignorado pelo git).
 
+### Publicar uma versão
+
+Uma tag `v*` publica o `.exe` do servidor e o `.apk` no mesmo GitHub Release.
+O passo a passo, incluindo a geração da keystore e os secrets, está em
+[docs/release.md](../docs/release.md).
+
+Sem os secrets de assinatura o APK ainda é publicado, mas com a chave de
+debug — e um APK assinado com outra chave **não instala por cima** de uma
+instalação existente. Configure a assinatura antes da primeira versão que
+você pretenda atualizar depois.
+
 ### Memória
 
 O `gradle.properties` usa heap enxuto (1,5 GB, sem paralelismo). Não é

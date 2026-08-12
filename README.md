@@ -104,6 +104,12 @@ referência histórica.
 
 Monorepo: os dois projetos evoluem junto com a API que é o contrato entre eles.
 
+## Publicando
+
+Uma tag `v*` compila e publica os dois artefatos no mesmo GitHub Release —
+`.exe` do servidor e `.apk` do app. Passo a passo em
+[docs/release.md](docs/release.md).
+
 ## Contribuindo
 
 Contribuições são bem-vindas. Veja [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -42,6 +42,7 @@ go.work.sum
 *.jks
 *.keystore
 keystore.properties
+/android/dist/
 
 # --- IDEs ---
 .idea/
