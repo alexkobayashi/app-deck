@@ -17,12 +17,17 @@
 -keepattributes Signature, InnerClasses, EnclosingMethod
 -keepattributes RuntimeVisibleAnnotations, AnnotationDefault
 
-# ML Kit embutido (leitura de QR).
+# ML Kit: nenhuma regra própria, de propósito.
 #
-# A biblioteca traz regras próprias, mas o modelo é carregado por reflexão a
-# partir dos assets do APK. A leitura de QR é a única funcionalidade que
-# depende de minificação para se manifestar — uma quebra aqui não aparece em
-# nenhum build de debug, que foi como um problema anterior escapou.
--keep class com.google.mlkit.vision.barcode.** { *; }
--keep class com.google.mlkit.vision.common.** { *; }
--dontwarn com.google.mlkit.**
+# A biblioteca já traz regras de consumidor corretas. Acrescentar
+# "-keep class com.google.mlkit.vision.barcode.** { *; }" por precaução
+# **quebrou** o app: manter essas classes sem ofuscação enquanto as
+# dependências delas eram renomeadas rompeu o registro de componentes do ML
+# Kit, que casa dependências por identidade de classe. O sintoma era um crash
+# no arranque, só em release:
+#
+#   Unable to get provider com.google.mlkit.common.internal.MlKitInitProvider
+#   Caused by: Unsatisfied dependency for component ...
+#
+# Regra de keep não é gratuita: ela pode desalinhar uma biblioteca cujas
+# próprias regras já estavam certas.
