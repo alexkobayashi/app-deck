@@ -156,11 +156,14 @@ jobs:
           # um base64 de 5 mil caracteres: quebras de linha, espaços, e o
           # envelope -----BEGIN/END----- que o certutil do Windows acrescenta.
           # O base64 do coreutils recusa qualquer um desses caracteres.
-          if ! printf '%s' "$KEYSTORE_BASE64" \
-              | grep -v -- '-----' \
-              | tr -d '[:space:]' \
-              | base64 -d > "$jks" 2>/dev/null; then
-            echo "::error::ANDROID_KEYSTORE_BASE64 não decodifica. Gere de novo com [Convert]::ToBase64String e cole o valor inteiro, sem editar."
+          limpo="$(printf '%s' "$KEYSTORE_BASE64" | grep -v -- '-----' | tr -d '[:space:]')"
+
+          # O tamanho não é segredo, e é o que distingue "truncado" de
+          # "corrompido". Base64 válido sempre tem comprimento múltiplo de 4.
+          echo "Base64 recebido: ${#limpo} caracteres (resto da divisão por 4: $(( ${#limpo} % 4 )))"
+
+          if ! printf '%s' "$limpo" | base64 -d > "$jks" 2>/dev/null; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 não decodifica ($((${#limpo})) caracteres). Se o resto acima não for 0, o valor foi truncado na cópia. Gere de novo e cole o valor inteiro."
             exit 1
           fi
 
