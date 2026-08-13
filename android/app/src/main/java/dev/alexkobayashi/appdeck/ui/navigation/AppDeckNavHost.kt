@@ -10,6 +10,7 @@ import dev.alexkobayashi.appdeck.ui.deck.DeckScreen
 import dev.alexkobayashi.appdeck.ui.editor.ShortcutEditorScreen
 import dev.alexkobayashi.appdeck.ui.iconpicker.IconPickerScreen
 import dev.alexkobayashi.appdeck.ui.serverconfig.ServerConfigScreen
+import dev.alexkobayashi.appdeck.ui.settings.SettingsScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -17,6 +18,9 @@ data object DeckRoute
 
 @Serializable
 data object ServerConfigRoute
+
+@Serializable
+data object SettingsRoute
 
 @Serializable
 data class IconPickerRoute(val appId: String)
@@ -34,6 +38,7 @@ fun AppDeckNavHost(container: AppContainer) {
             DeckScreen(
                 container = container,
                 onOpenSettings = { navController.navigate(ServerConfigRoute) },
+                onOpenAppSettings = { navController.navigate(SettingsRoute) },
                 onEditIcon = { appId -> navController.navigate(IconPickerRoute(appId)) },
                 onAddShortcut = { navController.navigate(ShortcutEditorRoute()) },
                 onEditShortcut = { appId -> navController.navigate(ShortcutEditorRoute(appId)) },
@@ -42,6 +47,13 @@ fun AppDeckNavHost(container: AppContainer) {
 
         composable<ServerConfigRoute> {
             ServerConfigScreen(
+                container = container,
+                onDone = { navController.popBackStack() },
+            )
+        }
+
+        composable<SettingsRoute> {
+            SettingsScreen(
                 container = container,
                 onDone = { navController.popBackStack() },
             )

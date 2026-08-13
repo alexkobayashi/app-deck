@@ -10,6 +10,7 @@
     <string name="deck_menu_open">Abrir menu</string>
     <string name="deck_action_refresh">Recarregar atalhos</string>
     <string name="deck_action_settings">Configurar servidor</string>
+    <string name="deck_action_app_settings">Ajustes do app</string>
     <string name="deck_action_edit">Reorganizar atalhos</string>
     <string name="deck_action_edit_done">Concluir</string>
     <string name="deck_edit_hint">Arraste para reordenar · toque e segure um atalho para trocar o ícone</string>
@@ -84,6 +85,14 @@
     <string name="config_scan_not_pairing">Esse QR code não é um pareamento do App Deck</string>
     <string name="config_scan_unavailable">Não foi possível abrir o leitor. Preencha os campos manualmente.</string>
     <string name="config_scan_detail">Detalhe técnico: %1$s</string>
+
+    <!-- Ajustes do app -->
+    <string name="settings_title">Ajustes</string>
+    <string name="settings_appearance">Aparência</string>
+    <string name="settings_theme_system">Acompanhar o sistema</string>
+    <string name="settings_theme_light">Claro</string>
+    <string name="settings_theme_dark">Escuro</string>
+    <string name="settings_theme_help">Vale só para o app. O deck fica apoiado na mesa, onde a luz do ambiente não tem relação com o horário que decide o tema do aparelho.</string>
 
     <!-- Leitor de QR -->
     <string name="scan_aim_at_qr">Aponte a câmera para o QR code mostrado pelo servidor</string>

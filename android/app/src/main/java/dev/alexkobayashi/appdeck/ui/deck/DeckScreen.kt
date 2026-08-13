@@ -75,6 +75,7 @@ private val GridContentPadding =
 fun DeckScreen(
     container: AppContainer,
     onOpenSettings: () -> Unit,
+    onOpenAppSettings: () -> Unit,
     onEditIcon: (String) -> Unit,
     onAddShortcut: () -> Unit,
     onEditShortcut: (String) -> Unit,
@@ -167,6 +168,7 @@ fun DeckScreen(
                     onRefresh = viewModel::refresh,
                     onEdit = { editMode = true },
                     onSettings = onOpenSettings,
+                    onAppSettings = onOpenAppSettings,
                     modifier = overlayModifier,
                 )
             }

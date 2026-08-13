@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
@@ -52,6 +53,7 @@ fun DeckMenuButton(
     onRefresh: () -> Unit,
     onEdit: () -> Unit,
     onSettings: () -> Unit,
+    onAppSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -123,6 +125,17 @@ fun DeckMenuButton(
                 onClick = {
                     expanded = false
                     onSettings()
+                },
+            )
+            // Build em vez de outra engrenagem: "Configurar servidor" já usa a
+            // engrenagem e é o item que o usuário conhece; trocá-lo de ícone
+            // custaria mais que dar a chave inglesa ao item novo.
+            DeckMenuItem(
+                label = stringResource(R.string.deck_action_app_settings),
+                icon = Icons.Filled.Build,
+                onClick = {
+                    expanded = false
+                    onAppSettings()
                 },
             )
         }

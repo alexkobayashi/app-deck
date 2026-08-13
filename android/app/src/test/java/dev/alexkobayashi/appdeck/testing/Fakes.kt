@@ -5,11 +5,13 @@ import dev.alexkobayashi.appdeck.data.remote.dto.HealthDto
 import dev.alexkobayashi.appdeck.data.repository.ConnectionRepository
 import dev.alexkobayashi.appdeck.data.repository.DeckRepository
 import dev.alexkobayashi.appdeck.data.repository.ServerConfigRepository
+import dev.alexkobayashi.appdeck.data.repository.SettingsRepository
 import dev.alexkobayashi.appdeck.domain.model.ConnectionStatus
 import dev.alexkobayashi.appdeck.domain.model.DeckItem
 import dev.alexkobayashi.appdeck.domain.model.ServerConfig
 import dev.alexkobayashi.appdeck.domain.model.ServerConfigState
 import dev.alexkobayashi.appdeck.domain.model.ShortcutIcon
+import dev.alexkobayashi.appdeck.domain.model.ThemeMode
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -177,5 +179,20 @@ class FakeServerConfigRepository : ServerConfigRepository {
 
     companion object {
         val DEFAULT_CONFIG = ServerConfig("192.168.0.10", 5050, "token-de-teste-comprido-123456")
+    }
+}
+
+class FakeSettingsRepository : SettingsRepository {
+
+    private val _themeMode = MutableStateFlow(ThemeMode.System)
+
+    var savedMode: ThemeMode? = null
+        private set
+
+    override val themeMode: StateFlow<ThemeMode> = _themeMode
+
+    override suspend fun setThemeMode(mode: ThemeMode) {
+        savedMode = mode
+        _themeMode.value = mode
     }
 }

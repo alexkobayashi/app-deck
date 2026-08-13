@@ -4,6 +4,7 @@ import android.content.Context
 import dev.alexkobayashi.appdeck.data.local.AppDeckDatabase
 import dev.alexkobayashi.appdeck.data.local.IconFileStore
 import dev.alexkobayashi.appdeck.data.prefs.ServerConfigDataStore
+import dev.alexkobayashi.appdeck.data.prefs.SettingsDataStore
 import dev.alexkobayashi.appdeck.data.remote.AuthInterceptor
 import dev.alexkobayashi.appdeck.data.remote.BaseUrlInterceptor
 import dev.alexkobayashi.appdeck.data.remote.DeckApi
@@ -13,7 +14,9 @@ import dev.alexkobayashi.appdeck.data.repository.DeckRepository
 import dev.alexkobayashi.appdeck.data.repository.DefaultConnectionRepository
 import dev.alexkobayashi.appdeck.data.repository.DefaultDeckRepository
 import dev.alexkobayashi.appdeck.data.repository.DefaultServerConfigRepository
+import dev.alexkobayashi.appdeck.data.repository.DefaultSettingsRepository
 import dev.alexkobayashi.appdeck.data.repository.ServerConfigRepository
+import dev.alexkobayashi.appdeck.data.repository.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -74,6 +77,13 @@ class AppContainer(context: Context) {
         .build()
 
     private val serverConfigDataStore = ServerConfigDataStore(context)
+
+    private val settingsDataStore = SettingsDataStore(context)
+
+    val settingsRepository: SettingsRepository = DefaultSettingsRepository(
+        dataStore = settingsDataStore,
+        scope = appScope,
+    )
 
     private val healthProbe = HealthProbe(baseClient, json)
 
