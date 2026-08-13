@@ -27,23 +27,26 @@ Este arquivo junta o que funciona, o que não funciona e por quê.
   `ShellExecute`, não o `CreateProcess` que o Go usa. O `os.Stat` passa (o
   arquivo existe), mas a execução falha. Aponte sempre para o alvo do
   atalho, nunca para o atalho.
-- **Cuidado com caracteres invisíveis ao copiar o caminho.** A caixa de
-  *Propriedades* do Windows insere um `U+202A` (LEFT-TO-RIGHT EMBEDDING)
-  antes do caminho. Ele não aparece em lugar nenhum — nem no campo do app,
-  nem no `config.json`, nem na mensagem de erro — e faz o `os.Stat` falhar
-  com "executável não encontrado" num caminho que parece perfeito. Se um
-  atalho insiste em não achar o arquivo, é o primeiro suspeito:
+- **Caracteres invisíveis no caminho são removidos automaticamente.** A caixa
+  de *Propriedades* do Windows copia o caminho com um `U+202A`
+  (LEFT-TO-RIGHT EMBEDDING) na frente. Ele não aparece em lugar nenhum — nem
+  no campo do app, nem no `config.json`, nem na mensagem de erro — e fazia o
+  `os.Stat` falhar com "executável não encontrado" num caminho visivelmente
+  perfeito.
 
-  ```powershell
-  # Mostra o código de cada um dos 6 primeiros caracteres do path.
-  # Um caminho limpo começa em U+0043 ('C'), não em U+202A.
-  ($cfg.apps | Where-Object { $_.name -eq 'Spotify' }).path.Substring(0,6).ToCharArray() |
-    ForEach-Object { "U+{0:X4}  '{1}'" -f [int]$_, $_ }
+  O servidor agora limpa esses caracteres ao carregar o config e ao receber
+  um `POST`/`PUT`, e registra um aviso nomeando o code point:
+
+  ```
+  level=WARN msg=configuração aviso="app abcdef0123456789 (path): caractere
+  invisível (U+202A) removido do path \"\u202aC:\\Windows\\System32\\calc.exe\";
+  costuma vir de copiar o caminho pela caixa de Propriedades do Windows"
   ```
 
-  Prefira copiar o caminho pela barra de endereço do Explorador, ou com
-  <kbd>Shift</kbd>+botão direito → *Copiar como caminho* (que traz aspas,
-  mas não traz o `U+202A`).
+  Um `config.json` que já tenha o problema **se cura no próximo start** — o
+  arquivo é regravado limpo, com os `id` preservados (nenhum ícone
+  customizado é perdido). Só o `path` passa por essa limpeza; o `name` é
+  texto livre, onde marcas bidirecionais podem ser intencionais.
 
 ## Programa comum
 
@@ -225,7 +228,6 @@ administrador na máquina.
 |---|---|
 | `path` = arquivo `.lnk` | `CreateProcess` não resolve atalhos do Windows |
 | `path` = `.exe` em `WindowsApps` | ACL nega o acesso; app UWP precisa ser ativado, não executado |
-| `path` copiado das Propriedades | `U+202A` invisível no início quebra o `os.Stat` |
 | `path` = `https://...` | o launcher exige um arquivo existente |
 | Argumento com espaço | o parser da v1 quebra a string em espaços |
 | `path` = `cmd.exe` direto | `DETACHED_PROCESS` deixa o console invisível |

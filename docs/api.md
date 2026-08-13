@@ -99,8 +99,29 @@ O app deve decidir o comportamento pelo `code`, não pela mensagem.
 |---|---|---|---|
 | `id` | string | gerado pelo servidor | 16 caracteres hex. **Read-only e estável para sempre.** |
 | `name` | string | sim | Nome exibido no deck. Espaços nas pontas são removidos. |
-| `path` | string | sim | Caminho absoluto do executável no Windows. |
+| `path` | string | sim | Caminho absoluto do executável no Windows. Normalizado — veja abaixo. |
 | `args` | string[] | não | Argumentos passados ao programa. Omitido quando vazio. |
+
+### Normalização do `path`
+
+O servidor não devolve o `path` exatamente como foi enviado. Além de aparar
+os espaços das pontas, ele **remove caracteres de formatação Unicode
+invisíveis** (`U+200B`, `U+200E`, `U+200F`, `U+202A`–`U+202E`,
+`U+2066`–`U+2069`, `U+FEFF`).
+
+O motivo é prático: a caixa de *Propriedades* do Windows copia caminhos com
+um `U+202A` na frente, e o usuário não tem como enxergar isso em lugar
+nenhum — o atalho simplesmente falha com "executável não encontrado" num
+caminho que parece correto. Há também um ganho de segurança: `U+202E`
+(RIGHT-TO-LEFT OVERRIDE) permitiria que o path exibido no deck mentisse
+sobre a extensão do arquivo que será executado.
+
+`U+200C` e `U+200D` (ZWNJ e ZWJ) são preservados: têm uso linguístico
+legítimo e podem fazer parte de um nome de pasta real.
+
+**Consequência para o cliente:** o `path` na resposta de `POST` e `PUT` pode
+diferir do enviado. Use sempre o valor devolvido, nunca o que você mandou.
+O `name` não passa por essa limpeza.
 
 O `id` é a chave que o app Android usa para guardar o ícone customizado.
 Ele é gerado uma única vez, com `crypto/rand`, e **não muda** quando o

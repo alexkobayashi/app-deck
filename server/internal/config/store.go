@@ -210,12 +210,17 @@ func (s *Store) AddApp(name, path string, args []string) (App, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	name, path = strings.TrimSpace(name), strings.TrimSpace(path)
+	name = strings.TrimSpace(name)
+	path, removed := cleanPath(path)
 	if name == "" {
 		return App{}, fmt.Errorf("%w: name é obrigatório", ErrInvalid)
 	}
 	if path == "" {
 		return App{}, fmt.Errorf("%w: path é obrigatório", ErrInvalid)
+	}
+	if len(removed) > 0 {
+		s.log.Warn("caractere invisível removido do path do novo atalho",
+			"name", name, "removidos", describeRunes(removed))
 	}
 
 	id, err := NewID()
@@ -259,9 +264,13 @@ func (s *Store) UpdateApp(id string, upd AppUpdate) (App, error) {
 		app.Name = name
 	}
 	if upd.Path != nil {
-		path := strings.TrimSpace(*upd.Path)
+		path, removed := cleanPath(*upd.Path)
 		if path == "" {
 			return App{}, fmt.Errorf("%w: path não pode ficar vazio", ErrInvalid)
+		}
+		if len(removed) > 0 {
+			s.log.Warn("caractere invisível removido do path do atalho",
+				"id", id, "removidos", describeRunes(removed))
 		}
 		app.Path = path
 	}

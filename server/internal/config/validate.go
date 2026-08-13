@@ -63,7 +63,13 @@ func (c *Config) normalize() ([]Warning, bool, error) {
 			app.Name = n
 			changed = true
 		}
-		if p := strings.TrimSpace(app.Path); p != app.Path {
+		// Limpar aqui conserta configs que já estão em disco: normalize
+		// devolve changed=true e o Open regrava o arquivo, então o caractere
+		// invisível desaparece de vez em vez de voltar a incomodar.
+		if p, removed := cleanPath(app.Path); p != app.Path {
+			if len(removed) > 0 {
+				warns = append(warns, invisibleCharWarning(app.ID, app.Path, removed))
+			}
 			app.Path = p
 			changed = true
 		}
