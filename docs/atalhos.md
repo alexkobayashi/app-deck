@@ -27,6 +27,23 @@ Este arquivo junta o que funciona, o que não funciona e por quê.
   `ShellExecute`, não o `CreateProcess` que o Go usa. O `os.Stat` passa (o
   arquivo existe), mas a execução falha. Aponte sempre para o alvo do
   atalho, nunca para o atalho.
+- **Cuidado com caracteres invisíveis ao copiar o caminho.** A caixa de
+  *Propriedades* do Windows insere um `U+202A` (LEFT-TO-RIGHT EMBEDDING)
+  antes do caminho. Ele não aparece em lugar nenhum — nem no campo do app,
+  nem no `config.json`, nem na mensagem de erro — e faz o `os.Stat` falhar
+  com "executável não encontrado" num caminho que parece perfeito. Se um
+  atalho insiste em não achar o arquivo, é o primeiro suspeito:
+
+  ```powershell
+  # Mostra o código de cada um dos 6 primeiros caracteres do path.
+  # Um caminho limpo começa em U+0043 ('C'), não em U+202A.
+  ($cfg.apps | Where-Object { $_.name -eq 'Spotify' }).path.Substring(0,6).ToCharArray() |
+    ForEach-Object { "U+{0:X4}  '{1}'" -f [int]$_, $_ }
+  ```
+
+  Prefira copiar o caminho pela barra de endereço do Explorador, ou com
+  <kbd>Shift</kbd>+botão direito → *Copiar como caminho* (que traz aspas,
+  mas não traz o `U+202A`).
 
 ## Programa comum
 
@@ -36,6 +53,57 @@ O caso padrão.
 |---|---|
 | `path` | `C:\Program Files\Google\Chrome\Application\chrome.exe` |
 | `args` | *(vazio)* |
+
+## Aplicativo da Microsoft Store (UWP)
+
+Spotify, Netflix, Fotos, Calculadora — apps da Store **não abrem pelo
+`.exe`**, por dois motivos que se somam:
+
+1. O executável fica em `C:\Program Files\WindowsApps\`, protegido por ACL.
+   O `os.Stat` do launcher passa (o arquivo existe), mas o `CreateProcess`
+   devolve **"Acesso negado"**.
+2. Mais de fundo: um app UWP precisa ser *ativado* pelo modelo de app do
+   Windows, não simplesmente executado. Nem com permissão o caminho direto
+   seria o jeito certo.
+
+A saída é pedir ao shell que ative o app pelo **AUMID** (*Application User
+Model ID*):
+
+| Campo | Valor |
+|---|---|
+| `path` | `C:\Windows\explorer.exe` |
+| `args` | `shell:AppsFolder\<PackageFamilyName>!<AppId>` |
+
+Exemplo real, do Spotify:
+
+| Campo | Valor |
+|---|---|
+| `path` | `C:\Windows\explorer.exe` |
+| `args` | `shell:AppsFolder\SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify` |
+
+Para descobrir o AUMID de qualquer app instalado:
+
+```powershell
+Get-StartApps | Where-Object { $_.Name -like "*Spotify*" }
+```
+
+A coluna `AppID` é exatamente o que vai depois de `shell:AppsFolder\`. Use
+esse comando em vez de montar o AUMID à mão: um pacote pode ter vários
+pontos de entrada (o do Spotify tem cinco — `Spotify`, `SpotifyCli`,
+`SpotifyLauncher`, `SpotifyWidgetProvider`, `Widget`) e o `Get-StartApps` já
+devolve aquele que o Menu Iniciar usa.
+
+Por que essa receita se encaixa bem no deck:
+
+- O AUMID **não tem espaço**, então sobrevive ao parser de argumentos da v1.
+- O `explorer.exe` delega para o shell e encerra na hora. O launcher não se
+  incomoda, porque usa `cmd.Start()` e não espera o filho terminar.
+- Diferente do `--app=` do Chrome, tocar de novo **reaproveita** a janela já
+  aberta, porque quem decide é o próprio modelo de app do Windows.
+
+A primeira abertura do dia leva alguns segundos: é o cold start do app UWP,
+não do deck. A API já respondeu `{"status":"launched"}` bem antes da janela
+aparecer.
 
 ## Página web
 
@@ -156,6 +224,8 @@ administrador na máquina.
 | Tentativa | Por quê |
 |---|---|
 | `path` = arquivo `.lnk` | `CreateProcess` não resolve atalhos do Windows |
+| `path` = `.exe` em `WindowsApps` | ACL nega o acesso; app UWP precisa ser ativado, não executado |
+| `path` copiado das Propriedades | `U+202A` invisível no início quebra o `os.Stat` |
 | `path` = `https://...` | o launcher exige um arquivo existente |
 | Argumento com espaço | o parser da v1 quebra a string em espaços |
 | `path` = `cmd.exe` direto | `DETACHED_PROCESS` deixa o console invisível |
