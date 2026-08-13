@@ -39,6 +39,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,6 +50,7 @@ import dev.alexkobayashi.appdeck.AppContainer
 import dev.alexkobayashi.appdeck.R
 import dev.alexkobayashi.appdeck.domain.model.ShortcutIcon
 import dev.alexkobayashi.appdeck.ui.common.ShortcutIconView
+import dev.alexkobayashi.appdeck.ui.icons.BuiltinIconCatalog
 import dev.alexkobayashi.appdeck.ui.icons.EmojiCatalog
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -141,38 +144,94 @@ fun IconPickerScreen(
                     Button(onClick = { pickImage() }) {
                         Text(stringResource(R.string.icon_from_gallery))
                     }
-                    Text(
-                        text = stringResource(R.string.icon_emoji_section),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    HorizontalDivider()
                 }
             }
 
-            EmojiCatalog.groups.forEach { group ->
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    Text(
-                        text = group.label,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
+            // Os ícones de aplicativo vêm antes do emoji: para um atalho que
+            // abre um programa conhecido, o logo dele é a primeira escolha
+            // óbvia, e o emoji virou a alternativa.
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                SectionHeader(stringResource(R.string.icon_builtin_section))
+            }
+            BuiltinIconCatalog.groups.forEach { group ->
+                item(span = { GridItemSpan(maxLineSpan) }) { GroupLabel(group.label) }
+                items(items = group.icons, key = { "builtin-${it.key}" }) { builtin ->
+                    PickerCell(
+                        selected = (item?.icon as? ShortcutIcon.Builtin)?.key == builtin.key,
+                        onClick = { viewModel.chooseBuiltin(builtin.key) },
+                        // A célula não mostra texto, igual às de emoji, então
+                        // sem isto a grade seria um punhado de imagens
+                        // indistinguíveis no leitor de tela.
+                        label = builtin.label,
+                    ) {
+                        ShortcutIconView(
+                            icon = ShortcutIcon.Builtin(builtin.key),
+                            size = 32.dp,
+                        )
+                    }
                 }
+            }
+
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                SectionHeader(stringResource(R.string.icon_emoji_section))
+            }
+            EmojiCatalog.groups.forEach { group ->
+                item(span = { GridItemSpan(maxLineSpan) }) { GroupLabel(group.label) }
                 items(items = group.emojis, key = { "${group.label}-$it" }) { emoji ->
-                    EmojiCell(
-                        emoji = emoji,
+                    PickerCell(
                         selected = (item?.icon as? ShortcutIcon.Emoji)?.char == emoji,
                         onClick = { viewModel.chooseEmoji(emoji) },
-                    )
+                    ) {
+                        // O emoji é lido como texto pelo TalkBack, então não
+                        // precisa de label próprio.
+                        Text(text = emoji, style = TextStyle(fontSize = 26.sp))
+                    }
                 }
             }
         }
     }
 }
 
+/** Cabeçalho de uma origem de ícone (aplicativos, emoji). */
 @Composable
-private fun EmojiCell(emoji: String, selected: Boolean, onClick: () -> Unit) {
+private fun SectionHeader(text: String) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        HorizontalDivider()
+    }
+}
+
+/** Subgrupo dentro de uma origem (Sistema, Desenvolvimento, ...). */
+@Composable
+private fun GroupLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 8.dp),
+    )
+}
+
+/**
+ * Célula clicável da grade, comum às duas origens.
+ *
+ * Uma só implementação para emoji e ícone de aplicativo: as cores de seleção
+ * precisam ser idênticas nos dois casos, e duplicá-las é como elas divergem.
+ */
+@Composable
+private fun PickerCell(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: String? = null,
+    content: @Composable () -> Unit,
+) {
     Surface(
         color = if (selected) {
             MaterialTheme.colorScheme.primaryContainer
@@ -182,13 +241,20 @@ private fun EmojiCell(emoji: String, selected: Boolean, onClick: () -> Unit) {
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick)
+            .then(
+                if (label == null) {
+                    Modifier
+                } else {
+                    Modifier.semantics { contentDescription = label }
+                },
+            ),
     ) {
         Row(
             modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
             horizontalArrangement = Arrangement.Center,
         ) {
-            Text(text = emoji, style = TextStyle(fontSize = 26.sp))
+            content()
         }
     }
 }

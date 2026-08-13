@@ -23,6 +23,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import dev.alexkobayashi.appdeck.data.local.IconFileStore
 import dev.alexkobayashi.appdeck.domain.model.ShortcutIcon
+import dev.alexkobayashi.appdeck.ui.icons.BuiltinIconCatalog
 import java.io.File
 
 /**
@@ -55,11 +56,31 @@ fun ShortcutIconView(
 
         is ShortcutIcon.Initials -> InitialsIcon(icon.text, size, modifier)
 
-        // Builtin e Local ainda não têm renderização própria: o pacote de
-        // vetores e a integração com o Coil entram nos incrementos seguintes.
-        // Até lá estes casos são inalcançáveis, porque o seletor não oferece
-        // essas opções — o fallback existe para não haver estado sem desenho.
-        is ShortcutIcon.Builtin -> InitialsIcon(icon.key.take(2).uppercase(), size, modifier)
+        is ShortcutIcon.Builtin -> {
+            val builtin = BuiltinIconCatalog.find(icon.key)
+            if (builtin == null) {
+                // Chave gravada que não existe mais no pacote: asset removido
+                // ou banco de uma versão anterior. Melhor as iniciais que um
+                // quadrado vazio.
+                InitialsIcon(icon.key.take(2).uppercase(), size, modifier)
+            } else {
+                val context = LocalContext.current
+                AsyncImage(
+                    // Pelo Coil, e não por painterResource: o Coil decodifica
+                    // no tamanho do alvo. Um PNG de 512² via painterResource
+                    // decodifica 1 MB, e a grade do seletor mostra as duas
+                    // dezenas de uma vez.
+                    model = ImageRequest.Builder(context)
+                        .data("android.resource://${context.packageName}/${builtin.res}")
+                        .build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = modifier
+                        .size(size)
+                        .clip(RoundedCornerShape(size * 0.25f)),
+                )
+            }
+        }
 
         is ShortcutIcon.Local -> {
             val context = LocalContext.current

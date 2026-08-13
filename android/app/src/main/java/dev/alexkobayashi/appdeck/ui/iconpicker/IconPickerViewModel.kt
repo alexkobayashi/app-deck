@@ -38,6 +38,10 @@ class IconPickerViewModel(
         viewModelScope.launch { deckRepository.setIcon(appId, ShortcutIcon.Emoji(char)) }
     }
 
+    fun chooseBuiltin(key: String) {
+        viewModelScope.launch { deckRepository.setIcon(appId, ShortcutIcon.Builtin(key)) }
+    }
+
     /**
      * Copia a imagem escolhida na galeria e a define como ícone.
      *

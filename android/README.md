@@ -77,6 +77,34 @@ Firewall do Windows para "Redes privadas".
 - **Lápis** entra no modo de reorganização: arraste os tiles e toque em
   *Concluir*. A ordem é preferência local, guardada só no aparelho.
 
+## Pacote de ícones embutido
+
+O seletor de ícone oferece três origens: **ícones de aplicativos** embutidos no
+APK, **galeria** do aparelho e **emoji**. Os embutidos ficam em
+`app/src/main/res/drawable-nodpi/ic_builtin_<chave>.png` e são registrados em
+[`BuiltinIconCatalog`](app/src/main/java/dev/alexkobayashi/appdeck/ui/icons/BuiltinIconCatalog.kt).
+
+Para acrescentar um ícone:
+
+1. Coloque o PNG em `android/icon-pack/<chave>.png` — pasta que não é
+   versionada, serve só de caixa de entrada. Requisitos: **quadrado**, **512 px
+   ou mais**, **fundo transparente** (RGBA), marca simples (vai ser desenhado a
+   48dp) e sem selo branco, que some no tema claro.
+2. Copie para `res/drawable-nodpi/` com o prefixo: `ic_builtin_<chave>.png`.
+3. Registre no `BuiltinIconCatalog`, num grupo, com um rótulo — o rótulo é o
+   `contentDescription` da célula, que não mostra texto.
+
+`drawable-nodpi`, e não `drawable`: um bitmap em `drawable/` é tratado como mdpi
+e o Android o reescala pela densidade do aparelho, decodificando 512 px como
+1440 px num celular 2.8x.
+
+A **chave é contrato**: é ela que fica gravada no banco do usuário
+(`ShortcutIcon.Builtin`). Renomear o arquivo depois deixa o ícone escolhido
+apontando para nada — o app cai nas iniciais, sem quebrar, mas a escolha se
+perde. O mapa do catálogo é estático porque o release roda com
+`isShrinkResources`, que removeria drawable alcançado só por
+`getIdentifier()`/reflexão.
+
 ## Decisões de arquitetura
 
 **Injeção de dependência manual** ([`AppContainer`](app/src/main/java/dev/alexkobayashi/appdeck/AppContainer.kt))
@@ -158,11 +186,6 @@ app/src/main/java/dev/alexkobayashi/appdeck/
 
 ## Fora do escopo desta versão
 
-- **Pacote de ícones vetoriais embutidos.** Das três origens de ícone
-  previstas no spec, emoji e galeria estão implementadas; o pacote embutido
-  foi dispensado por dar muito trabalho para pouca diferença prática. O
-  modelo já suporta (`ShortcutIcon.Builtin`, `IconType.BUILTIN`), então
-  acrescentar depois não exige migração de banco.
 - **Recorte manual da imagem.** A foto escolhida é recortada no centro
   automaticamente.
 - **Mais de um servidor.** A coluna `server_key` já existe reservada na

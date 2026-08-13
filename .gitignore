@@ -38,6 +38,11 @@ go.work.sum
 /android/app/release/
 /android/app/debug/
 
+# Caixa de entrada dos ícones do pacote embutido: os PNGs originais são
+# copiados para res/drawable-nodpi/ com o prefixo ic_builtin_, e é essa cópia
+# que o repositório versiona. Guardar as duas só engordaria o repo.
+/android/icon-pack/
+
 # Assinatura do APK — nunca commitar
 *.jks
 *.keystore
