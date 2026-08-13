@@ -55,6 +55,12 @@ keystore.properties
 *.swp
 *~
 
+# Configuração local do Claude Code: permissões aprovadas nesta máquina,
+# específicas do ambiente de quem clonou. Se um dia fizer sentido versionar
+# uma configuração de projeto (para valer para qualquer clone), basta abrir
+# uma exceção: !.claude/settings.json
+.claude/
+
 # --- Sistema operacional ---
 Thumbs.db
 ehthumbs.db
