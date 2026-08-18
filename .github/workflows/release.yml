@@ -77,7 +77,7 @@ jobs:
           ls -la
 
       - name: Publicar no Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             server/dist/app-deck-server.exe
@@ -231,7 +231,7 @@ jobs:
         run: rm -f "$RUNNER_TEMP/appdeck.jks"
 
       - name: Publicar no Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             android/dist/*.apk
